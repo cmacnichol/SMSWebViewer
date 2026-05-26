@@ -1,0 +1,26 @@
+# SMS Web Viewer Project Standards & Rules
+
+## 1. Core Principles
+- **Privacy First:** This is a self-hosted application. No telemetry, no external tracking, and direct API communication only (e.g., direct to Google Drive API using user-provided OAuth credentials).
+- **Simplicity:** Keep the architecture lightweight. Minimize dependencies where native solutions exist.
+
+## 2. Technology Stack
+- **Backend:** Python 3.11+, FastAPI, SQLAlchemy (async via `aiosqlite`).
+- **Frontend:** Pure HTML5, Vanilla JavaScript, and Bootstrap 5.3 (loaded via CDN). Do not introduce heavy frontend frameworks (React, Vue, Angular) unless an architectural shift is explicitly approved.
+- **Database:** Normalized SQLite (`/data/smsviewer.db`).
+- **Containerization:** Docker and Docker Compose.
+
+## 3. Backend Development Standards
+- All database operations must be asynchronous (`async session`) to prevent blocking the FastAPI event loop.
+- Use `selectinload` for SQLAlchemy relationships (like MMS parts) to avoid `MissingGreenlet` errors in async contexts.
+- Maintain the modular structure: `app/api/` for routing, `app/core/` for configuration and MCP, `app/services/` for business logic, and `app/models/` for database schemas.
+
+## 4. Frontend Development Standards
+- Keep Javascript clean and contained within `app/static/script.js`.
+- Use `fetch` API for all backend communication.
+- Manipulate the DOM directly. Do not use jQuery.
+- Custom styling goes into `app/static/index.html` within the `<style>` block (or a dedicated vanilla CSS file) utilizing standard variables.
+
+## 5. Deployment & Verification
+- **CRITICAL RULE:** Any build MUST be verified with local Docker before it can be pushed to GitHub. 
+- You must run `docker-compose up -d --build` locally and verify the application launches successfully and the frontend is responsive before executing a `git push`. Since GitHub Actions automatically builds and publishes the Docker Hub image upon pushing to `master`, a broken commit will result in a broken public release.
