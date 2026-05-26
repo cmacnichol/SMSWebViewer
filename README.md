@@ -1,26 +1,61 @@
 # SMS Web Viewer
 
-SMS Web Viewer is a containerized, self-hosted web application that acts as a robust backend data pipeline and frontend interface for your [SMS Backup & Restore](https://play.google.com/store/apps/details?id=com.riteshsahu.SMSBackupRestore) XML files. It automatically synchronizes with your Google Drive, parses your text message and call log backups, and presents them in a beautiful, searchable, chat-like UI.
+A modern, self-hosted web application that acts as a robust backend data pipeline and frontend interface for your [SMS Backup & Restore](https://play.google.com/store/apps/details?id=com.riteshsahu.SMSBackupRestore) XML files. It synchronizes with your Google Drive (or accepts manual uploads), parses your backups, and presents them in a beautiful, searchable, chat-like UI.
 
 ![SMS Web Viewer](https://img.shields.io/badge/Status-Active-success) ![Docker](https://img.shields.io/badge/Docker-Enabled-blue) ![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688)
 
+## Quick Start
+
+### Docker
+
+Run the latest version directly from Docker Hub:
+```bash
+docker run -d \
+  -p 8000:8000 \
+  -v $(pwd)/data:/data \
+  --name smsviewer \
+  elevarion/smsviewer:latest
+```
+
+### Docker Compose
+
+Create a `docker-compose.yml` file:
+```yaml
+services:
+  smsviewer:
+    image: elevarion/smsviewer:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/data
+    restart: unless-stopped
+```
+Then run `docker-compose up -d`.
+
 ## Features
 
-- **Automated Sync Pipeline:** In-process scheduler automatically pulls the latest XML backups directly from your Google Drive every day.
-- **Dynamic OAuth Integration:** Securely connect your Google account via a standard OAuth2 flow right from the UI—no manual Service Account JSONs required.
-- **Fast, Deduplicated Ingestion:** Uses a normalized SQLite database to deduplicate messages and calls based on content hashes, handling large backups efficiently.
-- **Modern Chat UI:** A clean, responsive interface featuring Dark Mode, contact filtering, message search, and media attachment indicators.
-- **Export Capabilities:** Export conversations to CSV, JSON, or PDF formats.
-- **MCP Enabled:** Built with an integrated Model Context Protocol (FastMCP) server to expose the database to external AI agents.
+- **Automated Sync Pipeline** - In-process scheduler automatically pulls the latest XML backups directly from your Google Drive. Schedule it daily, hourly, or run it manually.
+- **Dynamic OAuth Integration** - Securely connect your Google account via a standard OAuth2 flow right from the UI.
+- **Fast, Deduplicated Ingestion** - Uses a normalized SQLite database to deduplicate messages and calls based on content hashes. Works seamlessly with multi-GB backups.
+- **Global Full-Text Search** - Instantly search for keywords across all your contacts and conversations simultaneously.
+- **Manual XML Imports** - Easily upload XML files directly from the web interface if you don't want to use Google Drive sync.
+- **Export Capabilities** - Export conversations to CSV, JSON, or beautifully formatted PDFs.
+- **AI-Ready (MCP Enabled)** - Built with an integrated Model Context Protocol (FastMCP) server to expose your database to external AI agents securely.
+- **Full Privacy** - No telemetry. Operates entirely on your local machine using your own Google API credentials.
 
----
+## Tech Stack
 
-## Prerequisites
+- **Backend**: Python 3.11 with FastAPI and SQLAlchemy
+- **Frontend**: Vanilla Javascript, HTML5, and Bootstrap 5.3
+- **Database**: SQLite (stores messages, calls, configuration, and sync states)
 
-- **Docker** and **Docker Compose** installed on your host machine.
-- A **Google Cloud Platform (GCP)** account (free) to generate OAuth credentials for accessing your own Google Drive.
+## Data Persistence
 
----
+The Docker setup uses a bind mount to persist your database.
+- Host path: `./data`
+- Container path: `/data`
+
+Inside this folder, the application will create `smsviewer.db` (your messages and calls) and `sync_state.json` (Google Drive sync pointers).
 
 ## Google Cloud Platform (GCP) Setup
 
@@ -28,121 +63,52 @@ Because this is a self-hosted application, you need to create your own Google OA
 
 1. **Create a Project:**
    - Go to the [Google Cloud Console](https://console.cloud.google.com/).
-   - Click the project dropdown at the top and select **New Project**. Name it something like `SMS Web Viewer`.
+   - Click the project dropdown at the top and select **New Project**. Name it `SMS Web Viewer`.
 
 2. **Enable the Google Drive API:**
-   - In the left sidebar, navigate to **APIs & Services > Library**.
+   - Navigate to **APIs & Services > Library**.
    - Search for **Google Drive API** and click **Enable**.
 
 3. **Configure the OAuth Consent Screen:**
    - Navigate to **APIs & Services > OAuth consent screen**.
-   - Choose **External** (if you're using a personal Gmail account) or **Internal** (if using Google Workspace) and click **Create**.
-   - Fill in the required fields (App name, User support email, Developer contact info). You can leave the rest blank.
-   - On the **Scopes** page, click **Add or Remove Scopes** and manually add `https://www.googleapis.com/auth/drive.readonly`.
-   - On the **Test users** page, add your own Google email address.
+   - Choose **External** or **Internal** and click **Create**.
+   - Fill in the required fields. On the **Scopes** page, manually add `https://www.googleapis.com/auth/drive.readonly`.
+   - Add your Google email address as a **Test User**.
 
 4. **Create OAuth Credentials:**
    - Navigate to **APIs & Services > Credentials**.
    - Click **Create Credentials** -> **OAuth client ID**.
    - Set the Application type to **Web application**.
-   - Give it a name (e.g., `SMS Viewer Local`).
-   - Under **Authorized redirect URIs**, add the exact URI where your app will run locally:
-     `http://localhost:8000/api/auth/callback`
-   - Click **Create**.
-   - Copy your **Client ID** and **Client Secret**. You will need these for the `.env` file.
+   - Under **Authorized redirect URIs**, add: `http://localhost:8000/api/auth/callback`
+   - Copy your **Client ID** and **Client Secret**.
 
----
+## Environment Variables
 
-## Initial Setup
+To use the Google Drive sync feature, you must provide your Google Cloud credentials to the container. You can pass these via an `.env` file or directly in your `docker-compose.yml`:
 
-1. **Clone the Repository:**
-   ```bash
-   git clone https://github.com/yourusername/smsviewer.git
-   cd smsviewer
-   ```
-
-2. **Configure Environment Variables:**
-   Create a `.env` file in the root directory and add your Google Cloud credentials:
-   ```env
-   # Google OAuth2 Credentials (from GCP Setup)
-   GCP_CLIENT_ID="your-client-id.apps.googleusercontent.com"
-   GCP_CLIENT_SECRET="your-client-secret"
-   
-   # The redirect URI must match exactly what you put in Google Cloud Console
-   OAUTH_REDIRECT_URI="http://localhost:8000/api/auth/callback"
-   
-   # Optional: Set the default sync schedule (cron format). Default is 2 AM daily.
-   SYNC_SCHEDULE="0 2 * * *"
-   
-   # Optional: Default country code for phone number normalization
-   DEFAULT_COUNTRY_CODE="US"
-   ```
-
-3. **Start the Application:**
-   Run the following command to build the image and start the container:
-   ```bash
-   docker-compose up -d --build
-   ```
-
-   The application will initialize its SQLite database in a persistent Docker volume (`/data/smsviewer.db`).
-
----
+- `GCP_CLIENT_ID` - Your Google Cloud Client ID (e.g. `*.apps.googleusercontent.com`)
+- `GCP_CLIENT_SECRET` - Your Google Cloud Client Secret
+- `OAUTH_REDIRECT_URI` - Must exactly match your GCP setting (default: `http://localhost:8000/api/auth/callback`)
+- `DEFAULT_COUNTRY_CODE` - (Optional) Used for normalizing phone numbers (default: `US`)
 
 ## Usage Instructions
 
-1. **Access the Web UI:**
-   Open your browser and navigate to `http://localhost:8000`.
-
-2. **Connect Google Drive:**
-   - Click the **Settings** button (gear icon) in the top right corner.
-   - Click **Connect Google Drive**.
-   - You will be redirected to Google to authorize the application. Since your app is unverified, you may see a "Google hasn't verified this app" warning. Click **Advanced** and then **Go to SMS Web Viewer (unsafe)** to proceed.
-   - Grant the required read-only access to your Google Drive.
-
-3. **Select Your Sync Folder:**
-   - Once redirected back to the app, open the **Settings** modal again.
-   - You will now see a dropdown populated with the folders in your Google Drive.
-   - Select the folder where your SMS Backup & Restore XML files are saved.
-   - Click **Save Settings**.
-
-4. **Run a Sync:**
-   - Click the **Sync Now** button on the main dashboard.
-   - The backend will scan your selected folder, download the newest `sms-*.xml` and `calls-*.xml` files, and ingest them into the database.
-   - When the sync completes, your contacts, messages, and call logs will instantly populate!
-
----
+1. Access the web interface at `http://localhost:8000`.
+2. Click the **Settings** gear icon in the top right.
+3. Click **Connect Google Drive** and authorize the app. (If you see an "unverified app" warning, click Advanced -> Go to SMS Web Viewer).
+4. Once connected, reopen Settings and select your Sync Folder from the dropdown.
+5. Choose your Background Sync Schedule (e.g., Every hour, Daily at 2AM).
+6. Click **Save Settings** and then click **Sync Now** to run your first ingestion!
 
 ## Testing the MCP Server
 
-This application includes a built-in Model Context Protocol (MCP) server that allows external AI agents to query your SMS and Call data securely. It exposes an SSE (Server-Sent Events) transport endpoint.
+This application includes a built-in Model Context Protocol (MCP) server.
 
-### Using the Official MCP Inspector
+### Using with AI Assistants (LM Studio, Claude Desktop, VSCode)
 
-The easiest way to test the available MCP tools is using the official interactive inspector:
+Since SMS Web Viewer runs securely inside a Docker container, you can instruct your AI assistant to execute the MCP server directly via `docker exec`.
 
-1. Ensure your SMS Web Viewer Docker container is running (`http://localhost:8000`).
-2. Run the inspector using Node.js (`npx`):
-   ```bash
-   npx @modelcontextprotocol/inspector
-   ```
-3. The inspector will open a web interface in your browser.
-4. In the connection settings:
-   - Select **SSE** as the transport type.
-   - Set the URL to: `http://localhost:8000/mcp/sse`
-   - Click **Connect**.
-5. Once connected, you can browse and test the available tools:
-   - `query_contacts`: Look up contacts by name or phone number.
-   - `search_messages`: Perform a full-text search across all SMS and MMS messages.
-   - `get_conversation_context`: Retrieve the last N messages with a specific number.
-   - `get_call_stats`: Summarize call history (duration, missed vs. answered) for a specific number.
-
-### Using with LM Studio, VSCode, or Claude Desktop
-
-Most AI coding assistants and desktop apps (like LM Studio, Claude Desktop, Cline, or Roo Code) communicate with MCP servers using standard input/output (`stdio`). 
-
-Since SMS Web Viewer runs securely inside a Docker container, you can instruct your AI assistant to execute the MCP server directly from the container.
-
-Add the following configuration to your MCP settings file (e.g., LM Studio's MCP Config, `claude_desktop_config.json`, or `cline_mcp_settings.json`):
+Add the following to your MCP settings file (e.g., `claude_desktop_config.json`):
 
 ```json
 {
@@ -162,13 +128,10 @@ Add the following configuration to your MCP settings file (e.g., LM Studio's MCP
 }
 ```
 
-**Note:** Ensure the `smsviewer` Docker container is running before attempting to use the MCP tools in your AI assistant.
-
----
-
-## Data Privacy & Security
-
-SMS Web Viewer operates entirely on your local machine. 
-- It communicates directly with Google Drive using the OAuth credentials you generated. 
-- No middleman servers are used.
-- Your downloaded XML files and SQLite database are securely stored on your local Docker volumes.
+Available Tools:
+- `query_contacts`: Look up contacts by name or phone number.
+- `search_messages`: Perform a full-text search across all messages.
+- `get_conversation_context`: Retrieve recent messages with a specific number.
+- `get_conversation_text`: Retrieve raw chat logs specifically formatted for LLM summarization.
+- `get_communication_frequency`: Get monthly message volume statistics.
+- `get_call_stats`: Summarize call history (duration, missed vs. answered).
