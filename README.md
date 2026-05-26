@@ -110,12 +110,10 @@ You can configure the application by passing environment variables either via an
 
 This application includes a built-in Model Context Protocol (MCP) server.
 
-### Using with AI Assistants (LM Studio, Claude Desktop, VSCode)
-
-Since SMS Web Viewer runs securely inside a Docker container, you can instruct your AI assistant to execute the MCP server directly via `docker exec`.
+### 1. Local Connection (Same Machine)
+If your AI assistant is running on the same machine as your Docker container, you can instruct it to execute the MCP server directly via `docker exec`.
 
 Add the following to your MCP settings file (e.g., `claude_desktop_config.json`):
-
 ```json
 {
   "mcpServers": {
@@ -133,6 +131,36 @@ Add the following to your MCP settings file (e.g., `claude_desktop_config.json`)
   }
 }
 ```
+
+### 2. Remote Network Connection (via SSH)
+If you are hosting SMS Web Viewer on a separate local network server (e.g., a NAS or a Raspberry Pi) and want to connect your local AI assistant to it, you can bridge the `stdio` connection over SSH. Note: You must have passwordless SSH keys configured between your local machine and the server.
+
+```json
+{
+  "mcpServers": {
+    "sms-viewer-remote": {
+      "command": "ssh",
+      "args": [
+        "user@192.168.1.100",
+        "docker",
+        "exec",
+        "-i",
+        "smsviewer",
+        "python",
+        "-c",
+        "\"from app.core.mcp_server import mcp; mcp.run()\""
+      ]
+    }
+  }
+}
+```
+
+### 3. Remote Network Connection (via SSE)
+If your AI Client supports **SSE (Server-Sent Events)** natively (such as the official `@modelcontextprotocol/inspector` or Roo Code), you do not need SSH. You can connect directly over HTTP:
+- **Transport Type:** `SSE`
+- **URL:** `http://192.168.1.100:8000/mcp/sse`
+
+---
 
 Available Tools:
 - `query_contacts`: Look up contacts by name or phone number.
