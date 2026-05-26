@@ -84,12 +84,18 @@ Because this is a self-hosted application, you need to create your own Google OA
 
 ## Environment Variables
 
-To use the Google Drive sync feature, you must provide your Google Cloud credentials to the container. You can pass these via an `.env` file or directly in your `docker-compose.yml`:
+You can configure the application by passing environment variables either via an `.env` file or by specifying them directly in your `docker-compose.yml` under the `environment:` section.
 
-- `GCP_CLIENT_ID` - Your Google Cloud Client ID (e.g. `*.apps.googleusercontent.com`)
-- `GCP_CLIENT_SECRET` - Your Google Cloud Client Secret
-- `OAUTH_REDIRECT_URI` - Must exactly match your GCP setting (default: `http://localhost:8000/api/auth/callback`)
-- `DEFAULT_COUNTRY_CODE` - (Optional) Used for normalizing phone numbers (default: `US`)
+### Google Drive Sync (Required for Syncing)
+- `GCP_CLIENT_ID` - Your Google Cloud Client ID (e.g. `*.apps.googleusercontent.com`).
+- `GCP_CLIENT_SECRET` - Your Google Cloud Client Secret.
+
+### Optional Overrides
+- `DATABASE_URL` - Connection string for the database (default: `sqlite+aiosqlite:////data/smsviewer.db`). Useful if you wish to connect to an external PostgreSQL database instead of the embedded SQLite.
+- `APP_HOST` - The host IP the web server binds to (default: `0.0.0.0`).
+- `APP_PORT` - The internal port the web server listens on (default: `8000`).
+- `OAUTH_REDIRECT_URI` - The callback URI for Google OAuth. Must exactly match your GCP setting (default: `http://localhost:8000/api/auth/callback`).
+- `DEFAULT_COUNTRY_CODE` - The two-letter ISO country code used for normalizing phone numbers (default: `US`).
 
 ## Usage Instructions
 
