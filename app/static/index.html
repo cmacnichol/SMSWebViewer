@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMS Web Viewer</title>
+    <meta name="description" content="Web-based viewer for SMS Backup & Restore XML files">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
+    <script defer src="script.js"></script>
+    <style>
+        :root {
+            --bg-primary: #f8f9fa;
+            --bg-secondary: #ffffff;
+            --bg-chat: #f0f2f5;
+            --text-primary: #212529;
+            --text-secondary: #6c757d;
+            --border-color: #dee2e6;
+            --incoming-bg: #ffffff;
+            --outgoing-bg: #dcf8c6;
+            --accent: #0d6efd;
+            --accent-light: #e7f1ff;
+        }
+
+        * { font-family: 'Inter', sans-serif; }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        /* Header */
+        .app-header {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.9) 0%, rgba(118, 75, 162, 0.9) 100%);
+            backdrop-filter: blur(10px);
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .app-header h1 {
+            font-weight: 700;
+            font-size: 1.5rem;
+            margin: 0;
+        }
+
+        /* Sync status bar */
+        #sync-bar {
+            background-color: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            transition: background-color 0.3s ease;
+        }
+
+        #sync-bar .sync-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        #sync-bar .sync-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #28a745;
+            display: inline-block;
+        }
+
+        #sync-bar .sync-dot.error { background-color: #dc3545; }
+        #sync-bar .sync-dot.running {
+            background-color: #ffc107;
+            animation: pulse 1s infinite;
+        }
+        #sync-bar .sync-dot.never { background-color: #6c757d; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        /* Contact list */
+        #contact-list {
+            max-height: calc(100vh - 280px);
+            overflow-y: auto;
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            transition: background-color 0.3s ease;
+        }
+
+        #contact-list .list-group-item {
+            border: none;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            padding: 0.75rem 1rem;
+            transition: background-color 0.2s ease, transform 0.2s ease;
+        }
+
+        #contact-list .list-group-item:hover {
+            background-color: var(--accent-light);
+            transform: translateY(-2px);
+        }
+
+        #contact-list .list-group-item.active {
+            background-color: var(--accent);
+            border-color: var(--accent);
+            color: white;
+        }
+
+        .contact-name { font-weight: 500; font-size: 0.9rem; }
+        .contact-number { font-size: 0.75rem; color: var(--text-secondary); }
+        
+        /* Make number readable when selected */
+        #contact-list .list-group-item.active .contact-number {
+            color: rgba(255, 255, 255, 0.85);
+        }
+        .contact-count {
+            font-size: 0.7rem;
+            background: var(--accent);
+            color: white;
+            border-radius: 12px;
+            padding: 2px 8px;
+        }
+
+        /* Chat window */
+        #chat-window {
+            max-height: calc(100vh - 310px);
+            overflow-y: auto;
+            padding: 1rem;
+            background-color: var(--bg-chat);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            transition: background-color 0.3s ease;
+        }
+
+        @keyframes slideUpFade {
+            0% { opacity: 0; transform: translateY(10px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        .message-row { display: flex; margin-bottom: 0.5rem; animation: slideUpFade 0.3s ease forwards; }
+        .message-row.incoming { justify-content: flex-start; }
+        .message-row.outgoing { justify-content: flex-end; }
+        .message-row.clustered { margin-bottom: 2px; margin-top: -4px; }
+
+        .message-bubble {
+            max-width: 75%;
+            padding: 0.5rem 0.75rem;
+            border-radius: 16px;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            word-wrap: break-word;
+        }
+
+        .message-bubble.incoming {
+            background-color: var(--incoming-bg);
+            border-bottom-left-radius: 4px;
+        }
+        .message-bubble.incoming.cluster-top { border-bottom-left-radius: 16px; }
+        .message-bubble.incoming.cluster-middle { border-bottom-left-radius: 16px; border-top-left-radius: 16px; }
+        .message-bubble.incoming.cluster-bottom { border-top-left-radius: 16px; }
+
+        .message-bubble.outgoing {
+            background-color: var(--outgoing-bg);
+            border-bottom-right-radius: 4px;
+        }
+        .message-bubble.outgoing.cluster-top { border-bottom-right-radius: 16px; }
+        .message-bubble.outgoing.cluster-middle { border-bottom-right-radius: 16px; border-top-right-radius: 16px; }
+        .message-bubble.outgoing.cluster-bottom { border-top-right-radius: 16px; }
+
+        .message-time {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            margin-top: 2px;
+            opacity: 0.8;
+        }
+
+        .message-media {
+            margin-top: 4px;
+        }
+
+        .message-media img {
+            max-width: 250px;
+            border-radius: 8px;
+            transition: transform 0.2s ease;
+        }
+        .message-media img:hover {
+            transform: scale(1.02);
+            cursor: pointer;
+        }
+
+        .date-divider {
+            text-align: center;
+            margin: 1rem 0;
+            position: sticky;
+            top: 10px;
+            z-index: 5;
+        }
+        .date-divider span {
+            background: rgba(0,0,0,0.1);
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            backdrop-filter: blur(5px);
+        }
+        mark { background-color: #ffeb3b; color: #000; padding: 0 2px; border-radius: 2px; }
+
+        /* Calls tab */
+        .call-item {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .call-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 0.75rem;
+            font-size: 0.8rem;
+        }
+
+        .call-icon.incoming { background: #d4edda; color: #28a745; }
+        .call-icon.outgoing { background: #cce5ff; color: #0d6efd; }
+        .call-icon.missed { background: #f8d7da; color: #dc3545; }
+
+        /* Tabs */
+        .nav-tabs .nav-link {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .nav-tabs .nav-link.active {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        /* Search */
+        .search-bar-collapsed {
+            max-height: 0;
+            overflow: hidden;
+            opacity: 0;
+            transition: max-height 0.3s ease, opacity 0.2s ease;
+        }
+
+        .search-bar-expanded {
+            max-height: 60px;
+            opacity: 1;
+            overflow: visible;
+            transition: max-height 0.3s ease, opacity 0.2s ease;
+        }
+
+        /* Dropdown */
+        .dropdown-menu { min-width: 150px; }
+
+        /* Loading spinner */
+        .spinner-overlay {
+            display: none;
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255,255,255,0.8);
+            z-index: 10;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .spinner-overlay.active { display: flex; }
+
+        /* Scrollbar styling */
+        #contact-list::-webkit-scrollbar,
+        #chat-window::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #contact-list::-webkit-scrollbar-thumb,
+        #chat-window::-webkit-scrollbar-thumb {
+            background-color: #ccc;
+            border-radius: 3px;
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        /* Lightbox */
+        #lightbox {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 1050;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(5px);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        #lightbox.active {
+            display: flex;
+            opacity: 1;
+        }
+        #lightbox-content {
+            max-width: 90%;
+            max-height: 90%;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        #lightbox-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: white;
+            font-size: 2rem;
+            cursor: pointer;
+            z-index: 1051;
+        }
+
+        /* Mobile View Toggle */
+        @media (max-width: 768px) {
+            .mobile-chat-active #sidebar { display: none !important; }
+            .mobile-chat-active #main-content { display: block !important; }
+            #main-content { display: none; }
+            #btn-mobile-back { display: inline-block !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid px-3 py-3" style="max-width: 1400px; margin: 0 auto;">
+        <!-- Header -->
+        <div class="app-header d-flex justify-content-between align-items-center">
+            <h1><i class="fas fa-comments"></i> SMS Web Viewer</h1>
+            <div>
+                <button id="settings-btn" class="btn btn-sm btn-light me-2" data-bs-toggle="modal" data-bs-target="#settingsModal">
+                    <i class="fas fa-cog"></i> Settings
+                </button>
+                <button id="dark-mode-toggle" class="btn btn-sm btn-outline-light">
+                    <i class="fas fa-moon"></i> Dark Mode
+                </button>
+            </div>
+        </div>
+
+        <!-- Sync Status Bar -->
+        <div id="sync-bar">
+            <div class="sync-status">
+                <span id="sync-dot" class="sync-dot never"></span>
+                <span id="sync-text">No sync performed yet</span>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <span id="sync-stats" class="text-muted" style="font-size:0.8rem;"></span>
+                <button id="sync-btn" class="btn btn-sm btn-outline-primary" onclick="triggerSync()">
+                    <i class="fas fa-sync-alt"></i> Sync Now
+                </button>
+                <button id="manual-upload-btn" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-upload"></i> Upload XML
+                </button>
+                <input type="file" id="xml-upload-input" accept=".xml" style="display: none;">
+            </div>
+        </div>
+
+        <div id="app-container" class="row g-3">
+            <!-- Sidebar -->
+            <div id="sidebar" class="col-md-3">
+                <div class="mb-2 position-relative">
+                    <input type="search" id="global-search" class="form-control form-control-sm border-primary" placeholder="Global Search...">
+                    <i class="fas fa-globe position-absolute text-primary" style="top: 8px; right: 25px; font-size: 0.8rem;"></i>
+                </div>
+                <hr class="my-2 text-muted" style="opacity: 0.15;">
+                <div class="mb-2">
+                    <input type="search" id="contact-search" class="form-control form-control-sm" placeholder="Search contacts...">
+                </div>
+                <div class="mb-2">
+                    <select id="contact-filter" class="form-select form-select-sm">
+                        <option value="all">All Contacts</option>
+                        <option value="named">Named Only</option>
+                        <option value="unknown">Unknown Only</option>
+                    </select>
+                </div>
+                <ul id="contact-list" class="list-group">
+                    <li class="empty-state">
+                        <i class="fas fa-address-book d-block"></i>
+                        <span>Contacts will appear after sync</span>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Main Content -->
+            <div id="main-content" class="col-md-9">
+                <!-- Toolbar -->
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div>
+                        <button id="btn-mobile-back" class="btn btn-outline-secondary btn-sm me-2 d-none">
+                            <i class="fas fa-arrow-left"></i> Back
+                        </button>
+                        <button id="toggle-search" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-search"></i> Search
+                        </button>
+                    </div>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-download"></i> Export
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" id="export-csv" href="#"><i class="fa-solid fa-file-csv fa-fw"></i> Export CSV</a></li>
+                            <li><a class="dropdown-item" id="export-pdf" href="#"><i class="fa-solid fa-file-pdf fa-fw"></i> Export PDF</a></li>
+                            <li><a class="dropdown-item" id="export-json" href="#"><i class="fa-solid fa-file-code fa-fw"></i> Export JSON</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" id="export-media" href="#"><i class="fa-solid fa-file-zipper fa-fw"></i> Export Media (ZIP)</a></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Search bar -->
+                <div id="search-bar-container" class="search-bar-collapsed mb-2">
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <input type="search" id="conversation-search" class="form-control form-control-sm" placeholder="Search in conversation...">
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <input type="date" id="search-start-date" class="form-control form-control-sm" title="Start Date">
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <input type="date" id="search-end-date" class="form-control form-control-sm" title="End Date">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Content Tabs -->
+                <ul class="nav nav-tabs mb-2" id="content-tabs">
+                    <li class="nav-item">
+                        <button class="nav-link active" id="messages-tab" data-bs-toggle="tab" data-bs-target="#messages-pane" type="button">
+                            <i class="fas fa-comment"></i> Messages
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" id="calls-tab" data-bs-toggle="tab" data-bs-target="#calls-pane" type="button">
+                            <i class="fas fa-phone"></i> Calls
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content">
+                    <!-- Messages Tab -->
+                    <div class="tab-pane fade show active" id="messages-pane">
+                        <div id="chat-window" class="position-relative">
+                            <div class="empty-state">
+                                <i class="fas fa-comments d-block"></i>
+                                <p>Select a contact to view messages</p>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Calls Tab -->
+                    <div class="tab-pane fade" id="calls-pane">
+                        <div id="calls-window" class="position-relative" style="max-height: calc(100vh - 310px); overflow-y: auto; padding: 1rem; background-color: var(--bg-chat); border: 1px solid var(--border-color); border-radius: 8px;">
+                            <div class="empty-state">
+                                <i class="fas fa-phone d-block"></i>
+                                <p>Select a contact to view call history</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content text-dark">
+          <div class="modal-header">
+            <h5 class="modal-title" id="settingsModalLabel">Settings</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <h6>Google Drive Connection</h6>
+            <div id="gdrive-status" class="mb-3">
+                <span class="badge bg-secondary">Checking status...</span>
+            </div>
+            
+            <div id="gdrive-connect-container" class="d-none">
+                <p class="text-muted small">Connect your Google Drive account to sync SMS and Call backups automatically.</p>
+                <button id="btn-connect-gdrive" class="btn btn-primary"><i class="fab fa-google"></i> Connect Google Drive</button>
+            </div>
+
+            <div id="gdrive-settings-container" class="d-none">
+                <div class="mb-3">
+                    <label for="gdrive-folder-select" class="form-label">Sync Folder</label>
+                    <input type="search" id="gdrive-folder-search" class="form-control form-control-sm mb-2" placeholder="Search folders...">
+                    <select id="gdrive-folder-select" class="form-select" size="6" style="max-height: 200px; overflow-y: auto;">
+                        <option value="">Loading folders...</option>
+                    </select>
+                    <div class="form-text mt-1">Select the folder containing your XML backups.</div>
+                </div>
+                <div class="mb-3">
+                    <label for="sync-schedule-select" class="form-label">Background Sync Schedule</label>
+                    <select id="sync-schedule-select" class="form-select">
+                        <option value="manual">Manual Only</option>
+                        <option value="0 * * * *">Every Hour</option>
+                        <option value="0 */6 * * *">Every 6 Hours</option>
+                        <option value="0 2 * * *">Daily at 2 AM</option>
+                    </select>
+                </div>
+                <button id="btn-save-gdrive-settings" class="btn btn-success">Save Settings</button>
+            </div>
+            
+            <hr>
+            <h5>Database Statistics</h5>
+            <div id="db-stats-container" class="mb-3">
+                <p class="text-muted">Loading stats...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lightbox -->
+    <div id="lightbox">
+        <i id="lightbox-close" class="fas fa-times"></i>
+        <div id="lightbox-container" class="d-flex align-items-center justify-content-center w-100 h-100">
+            <!-- Media injected here via JS -->
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
+</body>
+</html>

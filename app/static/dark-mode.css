@@ -1,0 +1,192 @@
+/* === Dark Mode Theme === */
+
+/* CSS Variables Override */
+body.dark-mode {
+    --bg-primary: #121212;
+    --bg-secondary: #1e1e1e;
+    --bg-chat: #1a1a2e;
+    --text-primary: #e0e0e0;
+    --text-secondary: #b0bec5;
+    --border-color: #333;
+    --incoming-bg: #263238;
+    --outgoing-bg: #1b5e20;
+    --accent: #7c8cf8;
+    --accent-light: #2a2d4a;
+}
+
+body.dark-mode {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+/* Header */
+body.dark-mode .app-header {
+    background: linear-gradient(135deg, #434190 0%, #553c7b 100%);
+    box-shadow: 0 4px 15px rgba(67, 65, 144, 0.4);
+}
+
+/* Sync bar */
+body.dark-mode #sync-bar {
+    background-color: var(--bg-secondary);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+/* Contact List */
+body.dark-mode #contact-list {
+    background-color: var(--bg-secondary);
+    border-color: var(--border-color);
+}
+
+body.dark-mode .list-group-item {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+body.dark-mode .list-group-item:hover {
+    background-color: var(--accent-light);
+}
+
+body.dark-mode .list-group-item.active {
+    background-color: var(--accent);
+    border-color: var(--accent);
+}
+
+body.dark-mode .contact-number {
+    color: var(--text-secondary);
+}
+
+/* Chat Window */
+body.dark-mode #chat-window,
+body.dark-mode #calls-window {
+    background-color: var(--bg-chat);
+    border-color: var(--border-color);
+}
+
+body.dark-mode .message-bubble.incoming {
+    background-color: var(--incoming-bg);
+    color: var(--text-primary);
+}
+
+body.dark-mode .message-bubble.outgoing {
+    background-color: var(--outgoing-bg);
+    color: var(--text-primary);
+}
+
+body.dark-mode .message-time {
+    color: var(--text-secondary);
+}
+
+/* Calls */
+body.dark-mode .call-item {
+    border-color: var(--border-color);
+}
+
+body.dark-mode .call-icon.incoming { background: #1b3d2f; color: #4caf50; }
+body.dark-mode .call-icon.outgoing { background: #1a2744; color: #64b5f6; }
+body.dark-mode .call-icon.missed { background: #3d1b1b; color: #ef5350; }
+
+/* Buttons */
+body.dark-mode .btn {
+    background-color: #2a2a2a;
+    color: var(--text-primary);
+    border-color: #444;
+}
+
+body.dark-mode .btn:hover {
+    background-color: #3a3a3a;
+    border-color: #555;
+}
+
+body.dark-mode .btn-outline-primary {
+    color: var(--accent);
+    border-color: var(--accent);
+}
+
+body.dark-mode .btn-outline-primary:hover {
+    background-color: var(--accent);
+    color: white;
+}
+
+body.dark-mode .btn-outline-secondary {
+    color: var(--text-secondary);
+    border-color: #555;
+}
+
+body.dark-mode .btn-outline-light {
+    color: white;
+    border-color: rgba(255,255,255,0.3);
+}
+
+/* Tabs */
+body.dark-mode .nav-tabs {
+    border-color: var(--border-color);
+}
+
+body.dark-mode .nav-tabs .nav-link {
+    color: var(--text-secondary);
+}
+
+body.dark-mode .nav-tabs .nav-link.active {
+    background-color: var(--bg-chat);
+    color: var(--accent);
+    border-color: var(--border-color) var(--border-color) var(--bg-chat);
+}
+
+/* Dropdown */
+body.dark-mode .dropdown-menu {
+    background-color: var(--bg-secondary);
+    border-color: var(--border-color);
+}
+
+body.dark-mode .dropdown-item {
+    color: var(--text-primary);
+}
+
+body.dark-mode .dropdown-item:hover {
+    background-color: var(--accent-light);
+    color: white;
+}
+
+/* Form controls */
+body.dark-mode .form-control,
+body.dark-mode .form-select {
+    background-color: #2a2a2a;
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+body.dark-mode .form-control::placeholder {
+    color: var(--text-secondary);
+}
+
+body.dark-mode .form-control:focus,
+body.dark-mode .form-select:focus {
+    background-color: #333;
+    color: var(--text-primary);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 0.2rem rgba(124, 140, 248, 0.25);
+}
+
+/* Muted text */
+body.dark-mode .text-muted {
+    color: var(--text-secondary) !important;
+}
+
+/* Empty state */
+body.dark-mode .empty-state {
+    color: var(--text-secondary);
+}
+
+/* Scrollbars */
+body.dark-mode #contact-list::-webkit-scrollbar-thumb,
+body.dark-mode #chat-window::-webkit-scrollbar-thumb {
+    background-color: #555;
+    border-radius: 3px;
+}
+
+/* Spinner overlay */
+body.dark-mode .spinner-overlay {
+    background: rgba(18, 18, 18, 0.8);
+}

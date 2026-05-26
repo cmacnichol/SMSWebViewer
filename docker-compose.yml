@@ -1,0 +1,25 @@
+services:
+  smsviewer:
+    build: .
+    container_name: smsviewer
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/data
+      - ./config:/config
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-sqlite+aiosqlite:////data/smsviewer.db}
+      - GCP_CLIENT_ID=${GCP_CLIENT_ID:-}
+      - GCP_CLIENT_SECRET=${GCP_CLIENT_SECRET:-}
+      - OAUTH_REDIRECT_URI=${OAUTH_REDIRECT_URI:-http://localhost:8000/api/auth/callback}
+      - SYNC_SCHEDULE=${SYNC_SCHEDULE:-0 2 * * *}
+      - DEFAULT_COUNTRY_CODE=${DEFAULT_COUNTRY_CODE:-US}
+      - APP_HOST=0.0.0.0
+      - APP_PORT=8000
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/health').raise_for_status()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
