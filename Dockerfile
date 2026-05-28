@@ -39,9 +39,6 @@ RUN mkdir -p /data /config /tmp && \
     chown -R appuser:appuser /data /config /tmp /app && \
     chmod +x entrypoint.sh
 
-# Switch to non-root user
-USER appuser
-
 # Expose port
 EXPOSE 8000
 
