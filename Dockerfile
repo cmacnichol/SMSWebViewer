@@ -14,6 +14,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 # ---- Runtime stage ----
 FROM python:3.11-slim AS runtime
 
+# Install tzdata for timezone support
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends tzdata && \
+    rm -rf /var/lib/apt/lists/*
+
+ENV TZ=UTC
+
 # Create non-root user
 RUN groupadd -r appuser && useradd -r -g appuser -d /app -s /sbin/nologin appuser
 
