@@ -55,15 +55,15 @@ Then run `docker-compose up -d`.
 
 - **Backend**: Python 3.11 with FastAPI and SQLAlchemy
 - **Frontend**: Vanilla Javascript, HTML5, and Bootstrap 5.3
-- **Database**: SQLite (stores messages, calls, configuration, and sync states)
+- **Database**: SQLite or PostgreSQL (stores messages, calls, configuration, and sync states)
 
 ## Data Persistence
 
-The Docker setup uses a bind mount to persist your database.
+The standalone Docker Compose setup uses a bind mount to persist your local SQLite database.
 - Host path: `./data`
 - Container path: `/data`
 
-Inside this folder, the application will create `smsviewer.db` (your messages and calls) and `sync_state.json` (Google Drive sync pointers).
+Inside this folder, the application will create `smsviewer.db` (your messages and calls). If using Docker Swarm and PostgreSQL, state is fully externalized and this folder is not required.
 
 ## Google Cloud Platform (GCP) Setup
 
@@ -106,6 +106,46 @@ You can configure the application by passing environment variables either via an
 - `DEFAULT_COUNTRY_CODE` - The two-letter ISO country code used for normalizing phone numbers (default: `US`).
 - `AUTH_MODE` - Set to `BASIC` to enable password-based user authentication, or `NONE` to disable auth (default: `NONE`).
 - `SECRET_KEY` - Used for signing JWTs when authentication is enabled. Make sure to change this in production!
+
+## Installation (Docker Compose)
+
+The easiest way to run SMS Web Viewer locally is using Docker Compose.
+
+```bash
+docker-compose up -d --build
+```
+The application will be available at `http://localhost:8000`. By default, it uses a local SQLite database stored in `./data/smsviewer.db`.
+
+## Installation (Docker Swarm / Production)
+
+For production deployments, high availability, and horizontal scaling, SMS Web Viewer fully supports Docker Swarm backed by an external PostgreSQL database. 
+
+A `docker-stack.yml` is provided in the repository.
+
+1. **Initialize Swarm** (if not already running):
+   ```bash
+   docker swarm init
+   ```
+
+2. **Create Docker Secrets**:
+   To secure your credentials, define the following Docker secrets:
+   ```bash
+   echo "your_super_secret_key" | docker secret create secret_key -
+   echo "postgresql+asyncpg://postgres:your_db_password@db:5432/smsviewer" | docker secret create database_url -
+   
+   # Optional: Google OAuth or OIDC secrets
+   echo "your_gcp_client_id" | docker secret create gcp_client_id -
+   echo "your_gcp_client_secret" | docker secret create gcp_client_secret -
+   echo "your_oidc_client_id" | docker secret create oidc_client_id -
+   echo "your_oidc_client_secret" | docker secret create oidc_client_secret -
+   ```
+
+3. **Deploy the Stack**:
+   ```bash
+   docker stack deploy -c docker-stack.yml smsviewer
+   ```
+
+> **Note on External Databases**: The `docker-stack.yml` includes an optional PostgreSQL `db` service. If you are using a managed database (like AWS RDS), simply comment out the `db` service in `docker-stack.yml` and point your `database_url` secret to the external instance.
 
 ## Usage Instructions
 

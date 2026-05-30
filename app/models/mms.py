@@ -24,6 +24,7 @@ class MMS(Base):
     __tablename__ = "mms"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True, nullable=True)
     hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
     address: Mapped[str] = mapped_column(String(32), index=True)
     normalized_address: Mapped[str] = mapped_column(String(32), index=True)
@@ -39,6 +40,7 @@ class MMS(Base):
     parts: Mapped[list["MMSPart"]] = relationship(
         back_populates="mms", cascade="all, delete-orphan"
     )
+    user: Mapped["User"] = relationship(back_populates="mms_messages")
 
 
 class MMSPart(Base):

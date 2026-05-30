@@ -9,6 +9,8 @@ from google_auth_oauthlib.flow import Flow
 
 from app.core.config import get_settings
 from app.core.database import get_session
+from app.core.security import get_current_user
+from app.models.user import User
 from app.models.config import AppConfig
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -42,7 +44,7 @@ def get_flow():
 
 
 @router.get("/login")
-async def login():
+async def login(current_user: User = Depends(get_current_user)):
     """Initiate the OAuth flow, returning the Google login URL."""
     try:
         flow = get_flow()
@@ -55,7 +57,7 @@ async def login():
 
 
 @router.get("/callback")
-async def callback(code: str, session: AsyncSession = Depends(get_session)):
+async def callback(code: str, session: AsyncSession = Depends(get_session), current_user: User = Depends(get_current_user)):
     """Handle the OAuth callback, exchanging code for tokens."""
     try:
         flow = get_flow()
@@ -63,11 +65,11 @@ async def callback(code: str, session: AsyncSession = Depends(get_session)):
         credentials = flow.credentials
 
         # Save to DB
-        stmt = select(AppConfig).where(AppConfig.id == 1)
+        stmt = select(AppConfig).where(AppConfig.user_id == current_user.id)
         config = (await session.execute(stmt)).scalar_one_or_none()
 
         if not config:
-            config = AppConfig(id=1)
+            config = AppConfig(user_id=current_user.id)
             session.add(config)
 
         # Only update refresh token if we received a new one
@@ -89,9 +91,9 @@ async def callback(code: str, session: AsyncSession = Depends(get_session)):
 
 
 @router.get("/status")
-async def status(session: AsyncSession = Depends(get_session)):
+async def status(session: AsyncSession = Depends(get_session), current_user: User = Depends(get_current_user)):
     """Check if the application is linked to a Google Drive account."""
-    stmt = select(AppConfig).where(AppConfig.id == 1)
+    stmt = select(AppConfig).where(AppConfig.user_id == current_user.id)
     config = (await session.execute(stmt)).scalar_one_or_none()
 
     is_connected = bool(config and config.gdrive_refresh_token)

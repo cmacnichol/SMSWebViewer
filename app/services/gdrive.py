@@ -21,13 +21,13 @@ logger = logging.getLogger(__name__)
 SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
 
 
-async def get_credentials(session: AsyncSession) -> Credentials:
-    """Get and automatically refresh OAuth credentials from the database."""
-    stmt = select(AppConfig).where(AppConfig.id == 1)
+async def get_credentials(session: AsyncSession, user_id: str) -> Credentials:
+    """Get and automatically refresh OAuth credentials from the database for a specific user."""
+    stmt = select(AppConfig).where(AppConfig.user_id == user_id)
     config = (await session.execute(stmt)).scalar_one_or_none()
 
     if not config or not config.gdrive_refresh_token:
-        raise ValueError("Google Drive is not connected.")
+        raise ValueError(f"Google Drive is not connected for user {user_id}.")
 
     settings = get_settings()
     creds = Credentials(
@@ -40,7 +40,7 @@ async def get_credentials(session: AsyncSession) -> Credentials:
     )
 
     if not creds.valid:
-        logger.info("Refreshing Google Drive access token...")
+        logger.info(f"Refreshing Google Drive access token for user {user_id}...")
         creds.refresh(Request())
         config.gdrive_access_token = creds.token
         if creds.expiry:
@@ -54,10 +54,8 @@ async def get_credentials(session: AsyncSession) -> Credentials:
 
 def _resolve_newest_file(service, folder_id: str, is_calls: bool) -> str:
     """Find the newest XML file in the specified folder based on type."""
-    # Build query to search inside the specific folder
     query = f"'{folder_id}' in parents and trashed = false"
     
-    # Optional: basic naming convention checks based on typical SMS Backup & Restore names
     if is_calls:
         query += " and name contains 'calls'"
     else:
@@ -104,23 +102,27 @@ def _download_file(service, file_id: str, dest_path: Path) -> Path:
     return dest_path
 
 
-async def download_xml(is_calls: bool = False, last_modified: str | None = None) -> tuple[Path | None, str | None]:
+async def download_xml(is_calls: bool = False, last_modified: str | None = None, user_id: str = None) -> tuple[Path | None, str | None]:
     """Download the newest XML backup file from the configured Google Drive folder.
 
     Args:
         is_calls: If True, look for calls backup; otherwise SMS/MMS.
         last_modified: The last known modifiedTime to check against.
+        user_id: The ID of the user requesting the download.
 
     Returns:
         Tuple of (Path to the downloaded XML file or None if skipped, new modifiedTime)
     """
-    dest = Path(f"/tmp/{'calls' if is_calls else 'sms'}_backup.xml")
+    if not user_id:
+        raise ValueError("user_id must be provided for download_xml")
+
+    dest = Path(f"/tmp/{user_id}_{'calls' if is_calls else 'sms'}_backup.xml")
 
     # Use a short-lived DB session to get credentials and folder ID
     async with async_session_maker() as session:
-        creds = await get_credentials(session)
+        creds = await get_credentials(session, user_id)
         
-        stmt = select(AppConfig).where(AppConfig.id == 1)
+        stmt = select(AppConfig).where(AppConfig.user_id == user_id)
         config = (await session.execute(stmt)).scalar_one_or_none()
         if not config or not config.gdrive_sync_folder_id:
             raise ValueError("No sync folder selected in Google Drive settings.")

@@ -4,6 +4,21 @@
 
 const API_BASE = '/api';
 
+// Fetch Interceptor for 401 Unauthorized
+const originalFetch = window.fetch;
+window.fetch = async function(...args) {
+    const response = await originalFetch(...args);
+    if (response.status === 401) {
+        // Show login modal if not already open
+        const loginModalEl = document.getElementById('loginModal');
+        if (loginModalEl && !loginModalEl.classList.contains('show')) {
+            const modal = new bootstrap.Modal(loginModalEl);
+            modal.show();
+        }
+    }
+    return response;
+};
+
 // State
 let currentContact = null;
 let contactsData = [];
@@ -819,6 +834,137 @@ document.getElementById('btn-save-gdrive-settings')?.addEventListener('click', a
     }
 });
 
+// ---- Auth & Tokens ----
+document.getElementById('login-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    const errEl = document.getElementById('login-error');
+    const u = document.getElementById('login-username').value;
+    const p = document.getElementById('login-password').value;
+    
+    btn.disabled = true;
+    errEl.classList.add('d-none');
+    
+    const formData = new FormData();
+    formData.append('username', u);
+    formData.append('password', p);
+    
+    try {
+        const res = await originalFetch(`${API_BASE}/user/login`, {
+            method: 'POST',
+            body: formData
+        });
+        if (res.ok) {
+            window.location.reload();
+        } else {
+            const data = await res.json();
+            errEl.textContent = data.detail || 'Login failed';
+            errEl.classList.remove('d-none');
+        }
+    } catch (err) {
+        errEl.textContent = 'Connection error';
+        errEl.classList.remove('d-none');
+    } finally {
+        btn.disabled = false;
+    }
+});
+
+document.getElementById('btn-logout')?.addEventListener('click', async (e) => {
+    e.preventDefault();
+    await originalFetch(`${API_BASE}/user/logout`, { method: 'POST' });
+    window.location.reload();
+});
+
+const tokensModalEl = document.getElementById('tokensModal');
+if (tokensModalEl) {
+    tokensModalEl.addEventListener('show.bs.modal', loadTokens);
+}
+
+async function loadTokens() {
+    const list = document.getElementById('tokens-list');
+    list.innerHTML = '<li class="list-group-item text-center text-muted small py-3">Loading tokens...</li>';
+    try {
+        const res = await fetch(`${API_BASE}/user/tokens`);
+        if (res.ok) {
+            const tokens = await res.json();
+            if (tokens.length === 0) {
+                list.innerHTML = '<li class="list-group-item text-center text-muted small py-3">No API tokens generated yet.</li>';
+                return;
+            }
+            list.innerHTML = '';
+            tokens.forEach(t => {
+                const li = document.createElement('li');
+                li.className = 'list-group-item d-flex justify-content-between align-items-center';
+                const date = new Date(t.created_at).toLocaleString();
+                const badge = t.is_global ? '<span class="badge bg-danger ms-2">Global</span>' : '';
+                const desc = t.description ? `<div class="small text-muted mb-1">${t.description}</div>` : '';
+                li.innerHTML = `
+                    <div>
+                        <strong>Token ID: ${t.id}</strong> ${badge}
+                        ${desc}
+                        <div class="small text-muted">Created: ${date}</div>
+                    </div>
+                    <button class="btn btn-sm btn-outline-danger" onclick="revokeToken('${t.id}')">Revoke</button>
+                `;
+                list.appendChild(li);
+            });
+        }
+    } catch (e) {
+        list.innerHTML = '<li class="list-group-item text-danger small">Failed to load tokens</li>';
+    }
+}
+
+async function revokeToken(id) {
+    if (!confirm('Are you sure you want to revoke this token?')) return;
+    try {
+        const res = await fetch(`${API_BASE}/user/tokens/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+            loadTokens();
+        } else {
+            alert('Failed to revoke token');
+        }
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+document.getElementById('btn-generate-token')?.addEventListener('click', async () => {
+    const isGlobal = document.getElementById('global-token-check')?.checked || false;
+    const desc = document.getElementById('token-description-input')?.value.trim() || 'Generated API Token';
+    try {
+        const res = await fetch(`${API_BASE}/user/tokens?is_global=${isGlobal}&description=${encodeURIComponent(desc)}`, { method: 'POST' });
+        if (res.ok) {
+            const data = await res.json();
+            document.getElementById('new-token-value').textContent = data.token;
+            document.getElementById('new-token-alert').classList.remove('d-none');
+            const descInput = document.getElementById('token-description-input');
+            if (descInput) descInput.value = '';
+            loadTokens();
+        } else {
+            const data = await res.json();
+            alert('Error: ' + data.detail);
+        }
+    } catch (e) {
+        alert('Failed to generate token');
+    }
+});
+
+document.getElementById('btn-copy-token')?.addEventListener('click', async () => {
+    const tokenVal = document.getElementById('new-token-value').textContent;
+    try {
+        await navigator.clipboard.writeText(tokenVal);
+        const icon = document.querySelector('#btn-copy-token i');
+        if (icon) {
+            icon.className = 'fas fa-check text-success';
+            setTimeout(() => {
+                icon.className = 'fas fa-copy';
+            }, 2000);
+        }
+    } catch (err) {
+        console.error('Failed to copy', err);
+    }
+});
+
 // ---- Init ----
 (async function init() {
     // Restore dark mode
@@ -837,9 +983,169 @@ document.getElementById('btn-save-gdrive-settings')?.addEventListener('click', a
         }, 500);
     }
 
+    // Check user auth state
+    try {
+        const meRes = await originalFetch(`${API_BASE}/user/me`);
+        if (meRes.ok) {
+            const me = await meRes.json();
+            document.getElementById('user-menu').style.display = 'block';
+            document.getElementById('btn-show-login').style.display = 'none';
+            document.getElementById('user-name-display').textContent = me.username;
+            
+            if (me.role === 'admin') {
+                document.getElementById('global-token-container').classList.remove('d-none');
+                document.getElementById('menu-user-management').classList.remove('d-none');
+            }
+            if (me.auth_mode === 'OIDC') {
+                document.getElementById('oidc-login-section').classList.remove('d-none');
+                document.getElementById('login-form').classList.add('d-none');
+            }
+            if (me.auth_mode === 'NONE') {
+                document.getElementById('btn-logout').style.display = 'none';
+            }
+        } else {
+            document.getElementById('user-menu').style.display = 'none';
+            document.getElementById('btn-show-login').style.display = 'block';
+        }
+    } catch (e) {
+        console.error('Failed to check auth state', e);
+    }
+
     // Load sync status
     const status = await fetchSyncStatus();
     updateSyncStatus(status);
     // Load contacts
     await loadContacts();
 })();
+
+// ---- User Management & Password Change ----
+document.getElementById('password-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const currentPass = document.getElementById('current-password').value;
+    const newPass = document.getElementById('new-password').value;
+    const errEl = document.getElementById('password-error');
+    const succEl = document.getElementById('password-success');
+    errEl.classList.add('d-none');
+    succEl.classList.add('d-none');
+    
+    try {
+        const res = await fetch(`${API_BASE}/user/password`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                current_password: currentPass,
+                new_password: newPass
+            })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            succEl.textContent = 'Password updated successfully!';
+            succEl.classList.remove('d-none');
+            e.target.reset();
+        } else {
+            errEl.textContent = data.detail || 'Failed to update password';
+            errEl.classList.remove('d-none');
+        }
+    } catch (err) {
+        errEl.textContent = 'An error occurred';
+        errEl.classList.remove('d-none');
+    }
+});
+
+const userManagementModalEl = document.getElementById('userManagementModal');
+if (userManagementModalEl) {
+    userManagementModalEl.addEventListener('show.bs.modal', loadUsers);
+}
+
+async function loadUsers() {
+    const tbody = document.getElementById('users-table-body');
+    const errEl = document.getElementById('um-error');
+    errEl.classList.add('d-none');
+    tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">Loading...</td></tr>';
+    
+    try {
+        const res = await fetch(`${API_BASE}/user/all`);
+        if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.detail || 'Failed to load users');
+        }
+        const users = await res.json();
+        
+        if (users.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">No users found</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = '';
+        for (const u of users) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${u.username}</td>
+                <td><span class="badge ${u.role === 'admin' ? 'bg-danger' : 'bg-primary'}">${u.role}</span></td>
+                <td class="text-end">
+                    <button class="btn btn-sm btn-outline-danger btn-delete-user" data-id="${u.id}"><i class="fas fa-trash"></i></button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        }
+        
+        document.querySelectorAll('.btn-delete-user').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const id = e.currentTarget.getAttribute('data-id');
+                if (!confirm('Are you sure you want to delete this user?')) return;
+                
+                try {
+                    const dRes = await fetch(`${API_BASE}/user/${id}`, { method: 'DELETE' });
+                    if (dRes.ok) {
+                        loadUsers();
+                    } else {
+                        const dData = await dRes.json();
+                        errEl.textContent = dData.detail || 'Failed to delete user';
+                        errEl.classList.remove('d-none');
+                    }
+                } catch(err) {
+                    errEl.textContent = 'Failed to delete user';
+                    errEl.classList.remove('d-none');
+                }
+            });
+        });
+        
+    } catch (err) {
+        errEl.textContent = err.message;
+        errEl.classList.remove('d-none');
+        tbody.innerHTML = '';
+    }
+}
+
+document.getElementById('create-user-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const username = document.getElementById('cu-username').value;
+    const password = document.getElementById('cu-password').value;
+    const role = document.getElementById('cu-role').value;
+    const errEl = document.getElementById('um-error');
+    const succEl = document.getElementById('um-success');
+    errEl.classList.add('d-none');
+    succEl.classList.add('d-none');
+    
+    try {
+        const res = await fetch(`${API_BASE}/user/create`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ username, password, role })
+        });
+        
+        if (res.ok) {
+            succEl.textContent = 'User created successfully!';
+            succEl.classList.remove('d-none');
+            e.target.reset();
+            loadUsers();
+        } else {
+            const data = await res.json();
+            errEl.textContent = data.detail || 'Failed to create user';
+            errEl.classList.remove('d-none');
+        }
+    } catch (err) {
+        errEl.textContent = 'An error occurred';
+        errEl.classList.remove('d-none');
+    }
+});

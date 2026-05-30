@@ -1,0 +1,82 @@
+version: "3.8"
+
+services:
+  # Optional: External Database Service
+  # If you are using an existing external PostgreSQL instance (like AWS RDS),
+  # you can omit this service entirely and just point DATABASE_URL to your external DB.
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: change_me_in_production
+      POSTGRES_DB: smsviewer
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+
+  # API Web Server
+  web:
+    image: cmacnichol/smsviewer:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      # Optional: Config folder if needed, but secrets are preferred
+      - config-data:/config
+    environment:
+      - AUTH_MODE=${AUTH_MODE:-NONE}
+      - APP_HOST=0.0.0.0
+      - APP_PORT=8000
+    secrets:
+      - database_url
+      - secret_key
+      - gcp_client_id
+      - gcp_client_secret
+      - oidc_client_id
+      - oidc_client_secret
+    deploy:
+      replicas: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+
+  # Background Scheduler Worker
+  worker:
+    image: cmacnichol/smsviewer:latest
+    command: ["runuser", "-u", "appuser", "--", "python", "-m", "app.worker"]
+    volumes:
+      - config-data:/config
+    secrets:
+      - database_url
+      - secret_key
+      - gcp_client_id
+      - gcp_client_secret
+      - oidc_client_id
+      - oidc_client_secret
+    deploy:
+      replicas: 1  # IMPORTANT: Must be strictly 1 to prevent duplicate sync jobs
+      restart_policy:
+        condition: on-failure
+
+volumes:
+  db-data:
+  config-data:
+
+secrets:
+  database_url:
+    external: true
+  secret_key:
+    external: true
+  gcp_client_id:
+    external: true
+  gcp_client_secret:
+    external: true
+  oidc_client_id:
+    external: true
+  oidc_client_secret:
+    external: true

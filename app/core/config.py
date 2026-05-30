@@ -22,7 +22,21 @@ class Settings(BaseSettings):
     APP_HOST: str = "0.0.0.0"
     APP_PORT: int = 8000
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    # Authentication
+    AUTH_MODE: str = "NONE"  # NONE, BASIC, OIDC
+    SECRET_KEY: str = "change-me-in-production"
+    
+    # OIDC Configuration
+    OIDC_CLIENT_ID: str = ""
+    OIDC_CLIENT_SECRET: str = ""
+    OIDC_ISSUER_URL: str = ""
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=True,
+        secrets_dir="/run/secrets"
+    )
 
 
 _settings: Settings | None = None

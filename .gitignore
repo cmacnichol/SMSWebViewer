@@ -40,3 +40,6 @@ sync_state.json
 
 # Docker
 .dockerignore
+
+# Planning Files
+user_management_plan.md

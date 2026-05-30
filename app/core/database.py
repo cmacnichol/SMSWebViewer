@@ -47,6 +47,10 @@ async def init_db() -> None:
             await conn.execute(text("ALTER TABLE app_config ADD COLUMN sync_schedule VARCHAR DEFAULT '0 2 * * *'"))
         except Exception:
             pass # Column already exists
+            
+        # Multi-tenant migration
+        from app.core.db_migration import run_multi_tenant_migration
+        await run_multi_tenant_migration(conn)
 
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:

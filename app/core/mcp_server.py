@@ -3,20 +3,36 @@
 import json
 import logging
 import os
+import contextvars
 from datetime import datetime
 
 from mcp.server.fastmcp import FastMCP, Image
 from sqlalchemy import func, or_, select
+from sqlalchemy.orm import selectinload
 
 from app.core.database import async_session_maker
 from app.models.call import Call
 from app.models.mms import MMS, MMSPart
-from sqlalchemy.orm import selectinload
 from app.models.sms import SMS
 
 logger = logging.getLogger(__name__)
 
 mcp = FastMCP("SMS Viewer")
+
+# Context variables populated by the FastAPI route
+mcp_user_id = contextvars.ContextVar("mcp_user_id", default=None)
+mcp_is_global = contextvars.ContextVar("mcp_is_global", default=False)
+
+def apply_tenant_filter(stmt, model):
+    """Applies the tenant user_id filter if the token is not global."""
+    if mcp_is_global.get():
+        return stmt
+    
+    uid = mcp_user_id.get()
+    if not uid:
+        raise ValueError("MCP Context Error: No user_id found and token is not global.")
+        
+    return stmt.where(model.user_id == uid)
 
 
 @mcp.tool()
@@ -37,9 +53,10 @@ async def query_contacts(search: str) -> list[dict]:
                     SMS.address.ilike(pattern),
                 )
             )
-            .group_by(SMS.normalized_address, SMS.contact_name)
-            .limit(50)
         )
+        stmt = apply_tenant_filter(stmt, SMS)
+        stmt = stmt.group_by(SMS.normalized_address, SMS.contact_name).limit(50)
+        
         result = await session.execute(stmt)
         return [
             {
@@ -69,6 +86,8 @@ async def search_messages(query: str, limit: int = 50) -> list[dict]:
             .order_by(SMS.date_ms.desc())
             .limit(limit)
         )
+        sms_stmt = apply_tenant_filter(sms_stmt, SMS)
+        
         mms_stmt = (
             select(
                 MMS.normalized_address,
@@ -81,6 +100,7 @@ async def search_messages(query: str, limit: int = 50) -> list[dict]:
             .order_by(MMS.date_ms.desc())
             .limit(limit)
         )
+        mms_stmt = apply_tenant_filter(mms_stmt, MMS)
 
         sms_results = (await session.execute(sms_stmt)).all()
         mms_results = (await session.execute(mms_stmt)).all()
@@ -126,6 +146,7 @@ async def get_conversation_context(
             .order_by(SMS.date_ms.desc())
             .limit(last_n)
         )
+        sms_stmt = apply_tenant_filter(sms_stmt, SMS)
         sms_results = (await session.execute(sms_stmt)).scalars().all()
         
         # Fetch MMS
@@ -136,6 +157,7 @@ async def get_conversation_context(
             .order_by(MMS.date_ms.desc())
             .limit(last_n)
         )
+        mms_stmt = apply_tenant_filter(mms_stmt, MMS)
         mms_results = (await session.execute(mms_stmt)).scalars().all()
 
         combined = []
@@ -175,14 +197,15 @@ async def get_conversation_context(
 async def get_media_attachment(mms_id: int, part_id: int):
     """Fetch an image or media attachment from an MMS message using IDs returned by get_conversation_context."""
     async with async_session_maker() as session:
-        stmt = select(MMSPart).where(MMSPart.id == part_id, MMSPart.mms_id == mms_id)
+        # Must join with MMS to verify ownership
+        stmt = select(MMSPart).join(MMS).where(MMSPart.id == part_id, MMSPart.mms_id == mms_id)
+        stmt = apply_tenant_filter(stmt, MMS)
         part = (await session.execute(stmt)).scalar_one_or_none()
         
         if not part or not part.data:
             return f"Media part {part_id} for MMS {mms_id} not found."
             
         if part.content_type.startswith("image/"):
-            # Format usually jpeg, png, etc.
             fmt = part.content_type.split("/")[-1]
             return Image(data=part.data, format=fmt)
         else:
@@ -194,6 +217,7 @@ async def get_call_stats(normalized_number: str) -> dict:
     """Summarize call history (duration, missed vs. answered) for a specific number."""
     async with async_session_maker() as session:
         stmt = select(Call).where(Call.normalized_number == normalized_number)
+        stmt = apply_tenant_filter(stmt, Call)
         results = (await session.execute(stmt)).scalars().all()
 
         total = len(results)
@@ -223,7 +247,10 @@ async def get_recent_active_contacts(limit: int = 10) -> list[dict]:
                 SMS.contact_name,
                 func.max(SMS.date_ms).label("last_active")
             )
-            .group_by(SMS.normalized_address, SMS.contact_name)
+        )
+        stmt = apply_tenant_filter(stmt, SMS)
+        stmt = (
+            stmt.group_by(SMS.normalized_address, SMS.contact_name)
             .order_by(func.max(SMS.date_ms).desc())
             .limit(limit)
         )
@@ -258,6 +285,7 @@ async def get_messages_by_date_range(
             .where(SMS.date_ms >= start_ms)
             .where(SMS.date_ms <= end_ms)
         )
+        sms_stmt = apply_tenant_filter(sms_stmt, SMS)
         sms_results = (await session.execute(sms_stmt)).scalars().all()
         
         mms_stmt = (
@@ -267,6 +295,7 @@ async def get_messages_by_date_range(
             .where(MMS.date_ms >= start_ms)
             .where(MMS.date_ms <= end_ms)
         )
+        mms_stmt = apply_tenant_filter(mms_stmt, MMS)
         mms_results = (await session.execute(mms_stmt)).scalars().all()
 
         combined = []
@@ -305,21 +334,21 @@ async def get_messages_by_date_range(
 async def get_database_stats() -> dict:
     """Get high-level statistics about the message database and sync state."""
     async with async_session_maker() as session:
-        total_sms = (await session.execute(select(func.count(SMS.id)))).scalar()
-        total_mms = (await session.execute(select(func.count(MMS.id)))).scalar()
-        total_calls = (await session.execute(select(func.count(Call.id)))).scalar()
+        total_sms = (await session.execute(apply_tenant_filter(select(func.count(SMS.id)), SMS))).scalar()
+        total_mms = (await session.execute(apply_tenant_filter(select(func.count(MMS.id)), MMS))).scalar()
+        total_calls = (await session.execute(apply_tenant_filter(select(func.count(Call.id)), Call))).scalar()
         
-        first_sms_ms = (await session.execute(select(func.min(SMS.date_ms)))).scalar()
-        last_sms_ms = (await session.execute(select(func.max(SMS.date_ms)))).scalar()
+        first_sms_ms = (await session.execute(apply_tenant_filter(select(func.min(SMS.date_ms)), SMS))).scalar()
+        last_sms_ms = (await session.execute(apply_tenant_filter(select(func.max(SMS.date_ms)), SMS))).scalar()
 
         sync_state = "Never synced"
-        try:
-            if os.path.exists("/data/sync_state.json"):
-                with open("/data/sync_state.json", "r") as f:
-                    state = json.load(f)
-                    sync_state = f"Synced at {datetime.fromtimestamp(state.get('last_sync_time', 0)).strftime('%Y-%m-%d %H:%M:%S')}"
-        except Exception:
-            pass
+        if mcp_is_global.get():
+            sync_state = "Global mode - check individual user sync status"
+        else:
+            from app.services.pipeline import get_sync_status
+            s = await get_sync_status(mcp_user_id.get())
+            if s.get("timestamp"):
+                sync_state = f"Synced at {s['timestamp']} ({s['status']})"
 
         return {
             "total_sms": total_sms,
@@ -346,11 +375,14 @@ async def get_conversation_text(normalized_number: str, days: int = 30) -> str:
             .where(SMS.normalized_address == normalized_number)
             .where(SMS.date_ms >= start_ms)
         )
+        sms_stmt = apply_tenant_filter(sms_stmt, SMS)
+        
         mms_stmt = (
             select(MMS)
             .where(MMS.normalized_address == normalized_number)
             .where(MMS.date_ms >= start_ms)
         )
+        mms_stmt = apply_tenant_filter(mms_stmt, MMS)
         
         sms_results = (await session.execute(sms_stmt)).scalars().all()
         mms_results = (await session.execute(mms_stmt)).scalars().all()
@@ -391,16 +423,17 @@ async def get_conversation_text(normalized_number: str, days: int = 30) -> str:
 async def get_communication_frequency(normalized_number: str) -> dict:
     """Return a breakdown of message volume per month for a contact."""
     async with async_session_maker() as session:
-        # We can group by month using sqlite strftime
         stmt_sms = select(
             func.strftime('%Y-%m', func.datetime(SMS.date_ms / 1000, 'unixepoch')).label('month'),
             func.count(SMS.id).label('count')
-        ).where(SMS.normalized_address == normalized_number).group_by('month')
+        ).where(SMS.normalized_address == normalized_number)
+        stmt_sms = apply_tenant_filter(stmt_sms, SMS).group_by('month')
         
         stmt_mms = select(
             func.strftime('%Y-%m', func.datetime(MMS.date_ms / 1000, 'unixepoch')).label('month'),
             func.count(MMS.id).label('count')
-        ).where(MMS.normalized_address == normalized_number).group_by('month')
+        ).where(MMS.normalized_address == normalized_number)
+        stmt_mms = apply_tenant_filter(stmt_mms, MMS).group_by('month')
         
         sms_res = (await session.execute(stmt_sms)).all()
         mms_res = (await session.execute(stmt_mms)).all()
@@ -411,18 +444,26 @@ async def get_communication_frequency(normalized_number: str) -> dict:
         for r in mms_res:
             freq[r.month] = freq.get(r.month, 0) + r.count
             
-        # Sort chronologically
         sorted_freq = dict(sorted(freq.items()))
         return {
             "normalized_number": normalized_number,
             "monthly_message_count": sorted_freq
         }
 
+_background_tasks = set()
+
 @mcp.tool()
 async def trigger_background_sync() -> str:
     """Triggers an immediate background sync with Google Drive to pull the latest backups."""
-    from app.services.pipeline import trigger_sync_pipeline
+    from app.services.pipeline import run_ingestion_pipeline
     import asyncio
     
-    asyncio.create_task(trigger_sync_pipeline())
+    uid = mcp_user_id.get()
+    if not uid:
+        return "Error: Cannot trigger background sync with a global token. A user token is required."
+        
+    task = asyncio.create_task(run_ingestion_pipeline(uid))
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
+    
     return "Background sync pipeline has been triggered. Please wait a few minutes for it to complete, and then query the database or use get_database_stats to check the sync_status."

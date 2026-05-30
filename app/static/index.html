@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
-    <script defer src="script.js"></script>
+    <script defer src="script.js?v=1.1"></script>
     <style>
         :root {
             --bg-primary: #f8f9fa;
@@ -40,6 +40,8 @@
             border-radius: 12px;
             margin-bottom: 1rem;
             box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            position: relative;
+            z-index: 1050;
         }
 
         .app-header h1 {
@@ -355,8 +357,23 @@
         <!-- Header -->
         <div class="app-header d-flex justify-content-between align-items-center">
             <h1><i class="fas fa-comments"></i> SMS Web Viewer</h1>
-            <div>
-                <button id="settings-btn" class="btn btn-sm btn-light me-2" data-bs-toggle="modal" data-bs-target="#settingsModal">
+            <div class="d-flex align-items-center gap-2">
+                <div class="dropdown" id="user-menu" style="display: none;">
+                    <button class="btn btn-sm btn-light dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-user-circle"></i> <span id="user-name-display">Profile</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                        <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#tokensModal"><i class="fas fa-key fa-fw"></i> API Tokens</a></li>
+                        <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#passwordModal"><i class="fas fa-lock fa-fw"></i> Change Password</a></li>
+                        <li id="menu-user-management" class="d-none"><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#userManagementModal"><i class="fas fa-users fa-fw"></i> User Management</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger" href="#" id="btn-logout"><i class="fas fa-sign-out-alt fa-fw"></i> Logout</a></li>
+                    </ul>
+                </div>
+                <button id="btn-show-login" class="btn btn-sm btn-light" style="display: none;" data-bs-toggle="modal" data-bs-target="#loginModal">
+                    <i class="fas fa-sign-in-alt"></i> Login
+                </button>
+                <button id="settings-btn" class="btn btn-sm btn-light" data-bs-toggle="modal" data-bs-target="#settingsModal">
                     <i class="fas fa-cog"></i> Settings
                 </button>
                 <button id="dark-mode-toggle" class="btn btn-sm btn-outline-light">
@@ -486,6 +503,154 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- Login Modal -->
+    <div class="modal fade" id="loginModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content text-dark">
+          <div class="modal-header">
+            <h5 class="modal-title">Sign In</h5>
+          </div>
+          <div class="modal-body">
+            <div id="login-error" class="alert alert-danger d-none" role="alert"></div>
+            <form id="login-form">
+                <div class="mb-3">
+                    <label class="form-label">Username</label>
+                    <input type="text" id="login-username" class="form-control" required autocomplete="username">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Password</label>
+                    <input type="password" id="login-password" class="form-control" required autocomplete="current-password">
+                </div>
+                <button type="submit" class="btn btn-primary w-100">Sign In</button>
+            </form>
+            <div id="oidc-login-section" class="d-none mt-3">
+                <div class="text-center mb-2">or</div>
+                <button id="btn-oidc-login" class="btn btn-outline-primary w-100" onclick="window.location.href='/api/user/oidc/login'"><i class="fab fa-openid"></i> Sign in with OIDC</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tokens Modal -->
+    <div class="modal fade" id="tokensModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content text-dark">
+          <div class="modal-header">
+            <h5 class="modal-title">API Tokens</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p class="small text-muted">Generate API Tokens to connect MCP compatible agents (like Claude Desktop or LM Studio) to your database over the local network.</p>
+            <div class="mb-3">
+                <input type="text" id="token-description-input" class="form-control form-control-sm mb-2" placeholder="Description (e.g. LM Studio Desktop)">
+                <div id="global-token-container" class="form-check d-none">
+                    <input class="form-check-input" type="checkbox" id="global-token-check">
+                    <label class="form-check-label" for="global-token-check">
+                        Make Global Token (Admin Only)
+                    </label>
+                </div>
+                <button id="btn-generate-token" class="btn btn-primary btn-sm mt-2">Generate New Token</button>
+            </div>
+            
+            <div id="new-token-alert" class="alert alert-success d-none">
+                <strong>New Token (Save it now!):</strong><br>
+                <div class="d-flex align-items-center mt-2">
+                    <code id="new-token-value" class="fs-6 text-break me-2" style="user-select: all;"></code>
+                    <button class="btn btn-sm btn-outline-success" id="btn-copy-token" title="Copy to clipboard"><i class="fas fa-copy"></i></button>
+                </div>
+            </div>
+            
+            <h6>Your Tokens</h6>
+            <ul id="tokens-list" class="list-group list-group-flush border rounded">
+                <li class="list-group-item text-center text-muted small py-3">Loading tokens...</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div class="modal fade" id="passwordModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content text-dark">
+          <div class="modal-header">
+            <h5 class="modal-title">Change Password</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div id="password-error" class="alert alert-danger d-none" role="alert"></div>
+            <div id="password-success" class="alert alert-success d-none" role="alert"></div>
+            <form id="password-form">
+                <div class="mb-3">
+                    <label class="form-label">Current Password</label>
+                    <input type="password" id="current-password" class="form-control" required autocomplete="current-password">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">New Password</label>
+                    <input type="password" id="new-password" class="form-control" minlength="8" required autocomplete="new-password">
+                    <div class="form-text">Minimum 8 characters.</div>
+                </div>
+                <button type="submit" class="btn btn-primary w-100">Update Password</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- User Management Modal -->
+    <div class="modal fade" id="userManagementModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content text-dark">
+          <div class="modal-header">
+            <h5 class="modal-title">User Management</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div id="um-error" class="alert alert-danger d-none" role="alert"></div>
+            <div id="um-success" class="alert alert-success d-none" role="alert"></div>
+            
+            <h6>Create New User</h6>
+            <form id="create-user-form" class="mb-4">
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <input type="text" id="cu-username" class="form-control form-control-sm" placeholder="Username" required autocomplete="off">
+                    </div>
+                    <div class="col-md-4">
+                        <input type="password" id="cu-password" class="form-control form-control-sm" placeholder="Password (Min 8)" minlength="8" required autocomplete="new-password">
+                    </div>
+                    <div class="col-md-2">
+                        <select id="cu-role" class="form-select form-select-sm">
+                            <option value="user">User</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-sm btn-success w-100"><i class="fas fa-plus"></i> Create</button>
+                    </div>
+                </div>
+            </form>
+            
+            <h6>Existing Users</h6>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Role</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-table-body">
+                        <tr><td colspan="3" class="text-center text-muted">Loading users...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Settings Modal -->

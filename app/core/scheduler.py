@@ -14,22 +14,27 @@ scheduler = AsyncIOScheduler()
 
 
 async def setup_scheduler() -> None:
-    """Configure and start the scheduler with the configured cron expression."""
-    async with async_session_maker() as session:
-        stmt = select(AppConfig).where(AppConfig.id == 1)
-        config = (await session.execute(stmt)).scalar_one_or_none()
-        
-    schedule = config.sync_schedule if config and config.sync_schedule else "manual"
+    """Configure and start the scheduler for all configured users."""
+    import asyncio
+    scheduler._eventloop = asyncio.get_running_loop()
     
-    _apply_schedule(schedule)
+    async with async_session_maker() as session:
+        stmt = select(AppConfig).where(AppConfig.sync_schedule.isnot(None))
+        configs = (await session.execute(stmt)).scalars().all()
+        
+    for config in configs:
+        if config.user_id:
+            _apply_schedule(config.sync_schedule, config.user_id)
+            
     scheduler.start()
 
 
-def _apply_schedule(schedule: str) -> None:
+def _apply_schedule(schedule: str, user_id: str) -> None:
+    job_id = f"ingestion_pipeline_{user_id}"
     if schedule == "manual":
-        if scheduler.get_job("ingestion_pipeline"):
-            scheduler.remove_job("ingestion_pipeline")
-        logger.info("Sync schedule set to manual. Automatic sync disabled.")
+        if scheduler.get_job(job_id):
+            scheduler.remove_job(job_id)
+        logger.info(f"Sync schedule set to manual for {user_id}. Automatic sync disabled.")
         return
 
     try:
@@ -37,18 +42,19 @@ def _apply_schedule(schedule: str) -> None:
         scheduler.add_job(
             run_ingestion_pipeline,
             trigger=trigger,
-            id="ingestion_pipeline",
+            args=[user_id],
+            id=job_id,
             replace_existing=True,
             misfire_grace_time=3600,
         )
-        logger.info(f"Scheduler active with schedule: {schedule}")
+        logger.info(f"Scheduler active for {user_id} with schedule: {schedule}")
     except Exception as e:
-        logger.error(f"Failed to setup scheduler: {e}")
+        logger.error(f"Failed to setup scheduler for {user_id}: {e}")
 
 
-async def reschedule_sync_job(new_schedule: str) -> None:
-    """Dynamically update the schedule."""
-    _apply_schedule(new_schedule)
+async def reschedule_sync_job(new_schedule: str, user_id: str) -> None:
+    """Dynamically update the schedule for a user."""
+    _apply_schedule(new_schedule, user_id)
 
 
 def shutdown_scheduler() -> None:

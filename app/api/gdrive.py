@@ -8,6 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from googleapiclient.discovery import build
 
 from app.core.database import get_session
+from app.core.security import get_current_user
+from app.models.user import User
 from app.models.config import AppConfig
 from app.services.gdrive import get_credentials
 
@@ -20,16 +22,19 @@ class FolderSettingsUpdate(BaseModel):
 
 
 @router.get("/folders")
-async def list_folders(session: AsyncSession = Depends(get_session)):
+async def list_folders(
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
     """List all folders in the authenticated user's Google Drive."""
-    stmt = select(AppConfig).where(AppConfig.id == 1)
+    stmt = select(AppConfig).where(AppConfig.user_id == current_user.id)
     config = (await session.execute(stmt)).scalar_one_or_none()
 
     if not config or not config.gdrive_refresh_token:
         raise HTTPException(status_code=401, detail="Google Drive not connected")
 
     try:
-        credentials = await get_credentials(session)
+        credentials = await get_credentials(session, current_user.id)
         
         loop = asyncio.get_event_loop()
         def _fetch_folders():
@@ -59,14 +64,16 @@ async def list_folders(session: AsyncSession = Depends(get_session)):
 
 @router.post("/settings")
 async def update_settings(
-    update: FolderSettingsUpdate, session: AsyncSession = Depends(get_session)
+    update: FolderSettingsUpdate, 
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user)
 ):
     """Save the selected Google Drive sync folder ID."""
-    stmt = select(AppConfig).where(AppConfig.id == 1)
+    stmt = select(AppConfig).where(AppConfig.user_id == current_user.id)
     config = (await session.execute(stmt)).scalar_one_or_none()
 
     if not config:
-        config = AppConfig(id=1)
+        config = AppConfig(user_id=current_user.id)
         session.add(config)
 
     config.gdrive_sync_folder_id = update.folder_id
@@ -74,6 +81,6 @@ async def update_settings(
     await session.commit()
     
     from app.core.scheduler import reschedule_sync_job
-    await reschedule_sync_job(config.sync_schedule)
+    await reschedule_sync_job(config.sync_schedule, current_user.id)
     
     return {"status": "ok", "folder_id": config.gdrive_sync_folder_id, "sync_schedule": config.sync_schedule}
