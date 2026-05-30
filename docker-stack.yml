@@ -20,7 +20,7 @@ services:
 
   # API Web Server
   web:
-    image: cmacnichol/smsviewer:latest
+    image: ghcr.io/cmacnichol/smsviewer:latest
     ports:
       - "8000:8000"
     volumes:
@@ -47,7 +47,7 @@ services:
 
   # Background Scheduler Worker
   worker:
-    image: cmacnichol/smsviewer:latest
+    image: ghcr.io/cmacnichol/smsviewer:latest
     command: ["runuser", "-u", "appuser", "--", "python", "-m", "app.worker"]
     volumes:
       - config-data:/config
