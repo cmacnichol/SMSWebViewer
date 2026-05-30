@@ -237,3 +237,7 @@ Available Tools:
 - `get_conversation_text`: Retrieve raw chat logs specifically formatted for LLM summarization.
 - `get_communication_frequency`: Get monthly message volume statistics.
 - `get_call_stats`: Summarize call history (duration, missed vs. answered).
+
+## Credits
+
+Inspiration for this project was taken from [lowcarbdev/sbv](https://github.com/lowcarbdev/sbv).
