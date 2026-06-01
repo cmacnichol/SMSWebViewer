@@ -35,6 +35,12 @@ services:
       - APP_PORT=8000
       - OAUTH_REDIRECT_URI=http://localhost:8000/api/auth/callback
       - DEFAULT_COUNTRY_CODE=US
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import httpx; httpx.get('http://localhost:8000/health').raise_for_status()\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
     restart: unless-stopped
 ```
 Then run `docker-compose up -d`.
@@ -152,7 +158,7 @@ A `docker-stack.yml` is provided in the repository.
 When running SMS Web Viewer in a production environment (like Docker Swarm), the following healthcheck strategies apply to the containers:
 
 - **Background Worker (`worker`)**: Because this container does not run an HTTP server, it utilizes a custom file-based heartbeat. Every time the worker successfully completes its scheduling loop (every 60 seconds), it touches a file at `/tmp/worker_heartbeat`. The provided `docker-stack.yml` includes a built-in healthcheck that verifies this file has been updated within the last 2 minutes. If the process locks up, the container will automatically be marked as `unhealthy`.
-- **Web API (`web`)**: The web container runs a FastAPI server on port 8000. You can add a standard Docker HTTP healthcheck using `curl -f http://localhost:8000/ || exit 1` to verify the application is successfully responding to web requests.
+- **Web API (`web`)**: The web container runs a FastAPI server on port 8000. The provided `docker-stack.yml` includes a built-in standard Docker HTTP healthcheck utilizing the `/health` endpoint to verify the application is successfully responding to web requests.
 - **Database (`db`)**: The PostgreSQL container can be health-checked using its native `pg_isready` command (e.g., `pg_isready -U postgres -d smsviewer`).
 
 ## Usage Instructions

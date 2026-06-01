@@ -44,6 +44,12 @@ services:
         delay: 10s
       restart_policy:
         condition: on-failure
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import httpx; httpx.get('http://localhost:8000/health').raise_for_status()\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
 
   # Background Scheduler Worker
   worker:
