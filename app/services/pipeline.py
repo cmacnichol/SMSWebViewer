@@ -160,6 +160,8 @@ async def run_ingestion_pipeline(user_id: str) -> None:
             last_calls_modified = config.last_calls_modified
 
         sms_count = mms_count = call_count = 0
+        xml_path = None
+        calls_path = None
 
         # --- SMS/MMS ingestion ---
         try:
@@ -214,3 +216,8 @@ async def run_ingestion_pipeline(user_id: str) -> None:
         
         logger.exception(f"Ingestion pipeline failed for {user_id}: {e}")
         raise
+    finally:
+        if xml_path:
+            xml_path.unlink(missing_ok=True)
+        if calls_path:
+            calls_path.unlink(missing_ok=True)
