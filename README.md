@@ -147,6 +147,14 @@ A `docker-stack.yml` is provided in the repository.
 
 > **Note on External Databases**: The `docker-stack.yml` includes an optional PostgreSQL `db` service. If you are using a managed database (like AWS RDS), simply comment out the `db` service in `docker-stack.yml` and point your `database_url` secret to the external instance.
 
+## Container Healthchecks
+
+When running SMS Web Viewer in a production environment (like Docker Swarm), the following healthcheck strategies apply to the containers:
+
+- **Background Worker (`worker`)**: Because this container does not run an HTTP server, it utilizes a custom file-based heartbeat. Every time the worker successfully completes its scheduling loop (every 60 seconds), it touches a file at `/tmp/worker_heartbeat`. The provided `docker-stack.yml` includes a built-in healthcheck that verifies this file has been updated within the last 2 minutes. If the process locks up, the container will automatically be marked as `unhealthy`.
+- **Web API (`web`)**: The web container runs a FastAPI server on port 8000. You can add a standard Docker HTTP healthcheck using `curl -f http://localhost:8000/ || exit 1` to verify the application is successfully responding to web requests.
+- **Database (`db`)**: The PostgreSQL container can be health-checked using its native `pg_isready` command (e.g., `pg_isready -U postgres -d smsviewer`).
+
 ## Usage Instructions
 
 1. Access the web interface at `http://localhost:8000`.
