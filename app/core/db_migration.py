@@ -16,10 +16,10 @@ async def run_multi_tenant_migration(conn: AsyncConnection):
 
     for table in tables_to_migrate:
         try:
-            # In SQLite, adding a foreign key column without constraints is safe.
-            await conn.execute(text(f"ALTER TABLE {table} ADD COLUMN user_id VARCHAR REFERENCES users(id)"))
-            migration_needed = True
-            logger.info(f"Added user_id column to {table}.")
+            async with conn.begin_nested():
+                # In SQLite, adding a foreign key column without constraints is safe.
+                await conn.execute(text(f"ALTER TABLE {table} ADD COLUMN user_id VARCHAR REFERENCES users(id)"))
+                logger.info(f"Added user_id column to {table}.")
         except Exception as e:
             if "duplicate column name" in str(e).lower() or "already exists" in str(e).lower():
                 pass # Already migrated
@@ -29,8 +29,9 @@ async def run_multi_tenant_migration(conn: AsyncConnection):
     # Add sync state columns to app_config
     for col in ["last_sms_modified", "last_calls_modified", "last_sync_status", "last_sync_time", "last_sync_error", "last_sync_stats"]:
         try:
-            await conn.execute(text(f"ALTER TABLE app_config ADD COLUMN {col} VARCHAR"))
-            logger.info(f"Added {col} column to app_config.")
+            async with conn.begin_nested():
+                await conn.execute(text(f"ALTER TABLE app_config ADD COLUMN {col} VARCHAR"))
+                logger.info(f"Added {col} column to app_config.")
         except Exception as e:
             if "duplicate column name" in str(e).lower() or "already exists" in str(e).lower():
                 pass

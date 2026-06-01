@@ -44,7 +44,8 @@ async def init_db() -> None:
         # Simple migration for new columns
         from sqlalchemy import text
         try:
-            await conn.execute(text("ALTER TABLE app_config ADD COLUMN sync_schedule VARCHAR DEFAULT '0 2 * * *'"))
+            async with conn.begin_nested():
+                await conn.execute(text("ALTER TABLE app_config ADD COLUMN sync_schedule VARCHAR DEFAULT '0 2 * * *'"))
         except Exception:
             pass # Column already exists
             
