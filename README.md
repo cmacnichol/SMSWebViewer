@@ -8,13 +8,13 @@ A modern, self-hosted web application that acts as a robust backend data pipelin
 
 ### Docker
 
-Run the latest version directly from Docker Hub:
+Run the latest version directly from the GitHub Container Registry:
 ```bash
 docker run -d \
   -p 8000:8000 \
   -v $(pwd)/data:/data \
   --name smsviewer \
-  elevarion/smsviewer:latest
+  ghcr.io/cmacnichol/smsviewer:latest
 ```
 
 ### Docker Compose
@@ -23,7 +23,7 @@ Create a `docker-compose.yml` file:
 ```yaml
 services:
   smsviewer:
-    image: elevarion/smsviewer:latest
+    image: ghcr.io/cmacnichol/smsviewer:latest
     ports:
       - "8000:8000"
     volumes:

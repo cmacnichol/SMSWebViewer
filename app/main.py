@@ -51,7 +51,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="SMS Web Viewer",
     description="SMS Backup & Restore viewer with Google Drive integration",
-    version="1.0.0",
+    version="1.1.1",
     lifespan=lifespan,
 )
 
