@@ -22,8 +22,8 @@ class SMS(Base):
     user: Mapped["User"] = relationship(back_populates="sms_messages")
 
     # Addresses
-    address: Mapped[str] = mapped_column(String(32), index=True)
-    normalized_address: Mapped[str] = mapped_column(String(32), index=True)
+    address: Mapped[str] = mapped_column(String(255), index=True)
+    normalized_address: Mapped[str] = mapped_column(String(255), index=True)
     contact_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
     # Timestamps
@@ -35,7 +35,7 @@ class SMS(Base):
     body: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     read: Mapped[Optional[int]] = mapped_column(SmallInteger, nullable=True)
     status: Mapped[Optional[int]] = mapped_column(SmallInteger, nullable=True)
-    service_center: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    service_center: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     sub_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
     # Audit

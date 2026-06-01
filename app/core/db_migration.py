@@ -37,6 +37,24 @@ async def run_multi_tenant_migration(conn: AsyncConnection):
                 pass
             else:
                 logger.error(f"Error adding {col} to app_config: {e}")
+                
+    # Increase column sizes for PostgreSQL (SQLite ignores VARCHAR length)
+    if conn.dialect.name == "postgresql":
+        alter_statements = [
+            "ALTER TABLE calls ALTER COLUMN number TYPE VARCHAR(255)",
+            "ALTER TABLE calls ALTER COLUMN normalized_number TYPE VARCHAR(255)",
+            "ALTER TABLE sms ALTER COLUMN address TYPE VARCHAR(255)",
+            "ALTER TABLE sms ALTER COLUMN normalized_address TYPE VARCHAR(255)",
+            "ALTER TABLE sms ALTER COLUMN service_center TYPE VARCHAR(255)",
+            "ALTER TABLE mms ALTER COLUMN address TYPE VARCHAR(255)",
+            "ALTER TABLE mms ALTER COLUMN normalized_address TYPE VARCHAR(255)"
+        ]
+        for stmt in alter_statements:
+            try:
+                async with conn.begin_nested():
+                    await conn.execute(text(stmt))
+            except Exception as e:
+                logger.warning(f"Column resize migration error for {stmt}: {e}")
 
     # Check if users table has an admin user
     res = await conn.execute(text("SELECT id, password_hash FROM users WHERE role = 'admin' LIMIT 1"))
