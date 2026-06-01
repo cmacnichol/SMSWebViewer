@@ -71,6 +71,15 @@ async def _update_db_status(user_id: str, status: str, error: str = None, stats:
         await session.commit()
 
 
+def make_progress_callback(u_id: str, file_type: str):
+    def callback(pct: int):
+        if u_id not in _last_sync:
+            _last_sync[u_id] = {"status": "running", "stats": {}}
+        _last_sync[u_id]["stats"]["progress"] = pct
+        _last_sync[u_id]["stats"]["progress_type"] = file_type
+    return callback
+
+
 async def ingest_sms_mms_file(xml_path: Path, user_id: str) -> tuple[int, int]:
     """Ingest a local SMS/MMS XML file and return (sms_count, mms_count)."""
     settings = get_settings()
@@ -155,11 +164,12 @@ async def run_ingestion_pipeline(user_id: str) -> None:
         # --- SMS/MMS ingestion ---
         try:
             logger.info(f"Checking for new SMS/MMS backup for {user_id}...")
-            xml_path, new_sms_time = await download_xml(is_calls=False, last_modified=last_sms_modified, user_id=user_id)
+            xml_path, new_sms_time = await download_xml(is_calls=False, last_modified=last_sms_modified, user_id=user_id, progress_callback=make_progress_callback(user_id, "SMS"))
             
             if not xml_path:
                 logger.info("SMS/MMS backup is already up to date.")
             else:
+                _last_sync[user_id]["stats"]["processing"] = "SMS/MMS"
                 sms_count, mms_count = await ingest_sms_mms_file(xml_path, user_id)
                 xml_path.unlink(missing_ok=True)
                 last_sms_modified = new_sms_time
@@ -169,11 +179,12 @@ async def run_ingestion_pipeline(user_id: str) -> None:
         # --- Calls ingestion ---
         try:
             logger.info(f"Checking for new Call log backup for {user_id}...")
-            calls_path, new_calls_time = await download_xml(is_calls=True, last_modified=last_calls_modified, user_id=user_id)
+            calls_path, new_calls_time = await download_xml(is_calls=True, last_modified=last_calls_modified, user_id=user_id, progress_callback=make_progress_callback(user_id, "Calls"))
             
             if not calls_path:
                 logger.info("Call log backup is already up to date.")
             else:
+                _last_sync[user_id]["stats"]["processing"] = "Calls"
                 call_count = await ingest_calls_file(calls_path, user_id)
                 calls_path.unlink(missing_ok=True)
                 last_calls_modified = new_calls_time

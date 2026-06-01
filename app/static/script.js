@@ -398,22 +398,56 @@ function renderCalls(calls) {
 
 function updateSyncStatus(data) {
     if (!data) return;
+    
+    const progressContainer = document.getElementById('sync-progress-container');
+    const progressBar = document.getElementById('sync-progress-bar');
+    
     syncDot.className = 'sync-dot ' + (data.status || 'never');
+    
     if (data.status === 'success') {
         syncText.textContent = `Last synced: ${new Date(data.timestamp).toLocaleString()}`;
+        if (progressContainer && !progressContainer.classList.contains('d-none')) {
+            progressBar.style.width = '100%';
+            progressBar.classList.remove('progress-bar-animated');
+            progressBar.classList.add('bg-success');
+            syncText.textContent = 'Sync Complete!';
+            setTimeout(() => {
+                progressContainer.classList.add('d-none');
+                syncText.textContent = `Last synced: ${new Date(data.timestamp).toLocaleString()}`;
+            }, 3000);
+        }
     } else if (data.status === 'running') {
         syncText.textContent = 'Syncing...';
+        progressContainer.classList.remove('d-none');
+        progressBar.classList.add('progress-bar-animated');
+        progressBar.classList.remove('bg-success');
+        
+        let pct = 0;
+        if (data.stats && typeof data.stats.progress === 'number') {
+            pct = data.stats.progress;
+            const type = data.stats.progress_type || '';
+            syncText.textContent = `Downloading ${type} (${pct}%)...`;
+        } else if (data.stats && data.stats.processing) {
+            syncText.textContent = `Processing ${data.stats.processing}...`;
+            pct = 100;
+        }
+        progressBar.style.width = `${pct}%`;
     } else if (data.status === 'error') {
         syncText.textContent = `Sync error: ${data.error || 'Unknown'}`;
+        progressContainer.classList.add('d-none');
     } else {
         syncText.textContent = 'No sync performed yet';
+        progressContainer.classList.add('d-none');
     }
-    if (data.stats && Object.keys(data.stats).length > 0) {
+    
+    if (data.stats && Object.keys(data.stats).length > 0 && data.status !== 'running') {
         const parts = [];
-        if (data.stats.sms) parts.push(`${data.stats.sms} SMS`);
-        if (data.stats.mms) parts.push(`${data.stats.mms} MMS`);
-        if (data.stats.calls) parts.push(`${data.stats.calls} calls`);
+        if (data.stats.sms !== undefined) parts.push(`${data.stats.sms} SMS`);
+        if (data.stats.mms !== undefined) parts.push(`${data.stats.mms} MMS`);
+        if (data.stats.calls !== undefined) parts.push(`${data.stats.calls} calls`);
         syncStats.textContent = parts.length > 0 ? `(${parts.join(', ')})` : '';
+    } else if (data.status === 'running') {
+        syncStats.textContent = '';
     }
 }
 

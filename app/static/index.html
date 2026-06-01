@@ -384,9 +384,12 @@
 
         <!-- Sync Status Bar -->
         <div id="sync-bar">
-            <div class="sync-status">
+            <div class="sync-status d-flex align-items-center">
                 <span id="sync-dot" class="sync-dot never"></span>
                 <span id="sync-text">No sync performed yet</span>
+                <div class="progress ms-3 d-none" id="sync-progress-container" style="width: 150px; height: 12px;">
+                    <div id="sync-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                </div>
             </div>
             <div class="d-flex align-items-center gap-2">
                 <span id="sync-stats" class="text-muted" style="font-size:0.8rem;"></span>

@@ -88,7 +88,7 @@ def _resolve_newest_file(service, folder_id: str, is_calls: bool) -> str:
     return selected["id"], mod_time
 
 
-def _download_file(service, file_id: str, dest_path: Path) -> Path:
+def _download_file(service, file_id: str, dest_path: Path, progress_callback=None) -> Path:
     """Download a file from Google Drive to a local path."""
     request = service.files().get_media(fileId=file_id)
     with open(dest_path, "wb") as fh:
@@ -97,18 +97,21 @@ def _download_file(service, file_id: str, dest_path: Path) -> Path:
         while not done:
             status, done = downloader.next_chunk()
             if status:
-                logger.info(f"Download progress: {int(status.progress() * 100)}%")
+                pct = int(status.progress() * 100)
+                if progress_callback:
+                    progress_callback(pct)
     logger.info(f"Downloaded to {dest_path}")
     return dest_path
 
 
-async def download_xml(is_calls: bool = False, last_modified: str | None = None, user_id: str = None) -> tuple[Path | None, str | None]:
+async def download_xml(is_calls: bool = False, last_modified: str | None = None, user_id: str = None, progress_callback=None) -> tuple[Path | None, str | None]:
     """Download the newest XML backup file from the configured Google Drive folder.
 
     Args:
         is_calls: If True, look for calls backup; otherwise SMS/MMS.
         last_modified: The last known modifiedTime to check against.
         user_id: The ID of the user requesting the download.
+        progress_callback: Optional function to call with download percentage.
 
     Returns:
         Tuple of (Path to the downloaded XML file or None if skipped, new modifiedTime)
@@ -139,6 +142,6 @@ async def download_xml(is_calls: bool = False, last_modified: str | None = None,
             logger.info(f"File hasn't changed since {last_modified}. Skipping download.")
             return None, mod_time
             
-        return _download_file(service, resolved_id, dest), mod_time
+        return _download_file(service, resolved_id, dest, progress_callback), mod_time
 
     return await loop.run_in_executor(None, _sync_download)
