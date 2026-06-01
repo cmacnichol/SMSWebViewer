@@ -20,7 +20,6 @@ from app.api.gdrive import router as gdrive_router
 from app.core.config import get_settings
 from app.core.database import init_db
 from app.core.mcp_server import mcp
-from app.core.scheduler import setup_scheduler, shutdown_scheduler
 
 logging.basicConfig(
     level=logging.INFO,
@@ -45,9 +44,7 @@ async def lifespan(app: FastAPI):
         logger.info("Google OAuth credentials found.")
 
     await init_db()
-    await setup_scheduler()
     yield
-    shutdown_scheduler()
     logger.info("SMS Web Viewer shut down.")
 
 
