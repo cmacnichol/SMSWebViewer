@@ -17,8 +17,13 @@ print('Database initialized successfully.')
 
 echo "Starting server on ${APP_HOST:-0.0.0.0}:${APP_PORT:-8000}..."
 
-# Start uvicorn
-exec runuser -u appuser -- uvicorn app.main:app \
-    --host "${APP_HOST:-0.0.0.0}" \
-    --port "${APP_PORT:-8000}" \
-    --log-level info
+if [ "$#" -gt 0 ]; then
+    # Execute the custom command passed via Docker CMD
+    exec "$@"
+else
+    # Default to starting uvicorn
+    exec runuser -u appuser -- uvicorn app.main:app \
+        --host "${APP_HOST:-0.0.0.0}" \
+        --port "${APP_PORT:-8000}" \
+        --log-level info
+fi
