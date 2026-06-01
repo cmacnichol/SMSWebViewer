@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.2] - 2026-06-01
+
+### Added
+- **Version Badge:** Added a visible version number badge to the top right of the navigation header that adapts seamlessly to both light and dark modes.
+
+### Fixed
+- **PostgreSQL Strict Enforcement Fixes:** Added aggressive data sanitization to the XML parser to prevent PostgreSQL DBAPI crashes caused by corrupted or unbounded Android backup data:
+  - Strips NULL bytes (`\x00`) from all parsed strings to prevent `DataError: invalid byte sequence`.
+  - Clamps all `SmallInteger` fields (`type`, `msg_box`, `read`, `status`, `presentation`) to safe Postgres bounds (-32768 to 32767).
+  - Clamps all standard `Integer` fields (`duration`, `sub_id`) to safe Postgres bounds (-2147483648 to 2147483647).
+
 ## [1.2.1] - 2026-06-01
 
 ### Added

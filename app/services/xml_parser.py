@@ -30,11 +30,25 @@ def _safe_int(val, default=None):
     except (ValueError, TypeError):
         return default
 
+def _safe_int32(val, default=None):
+    """Safely convert to int and clamp to Postgres integer bounds to prevent out of range errors."""
+    i = _safe_int(val, default)
+    if i is not None:
+        return max(-2147483648, min(i, 2147483647))
+    return default
+
+def _safe_smallint(val, default=None):
+    """Safely convert to int and clamp to Postgres smallint bounds to prevent out of range errors."""
+    i = _safe_int(val, default)
+    if i is not None:
+        return max(-32768, min(i, 32767))
+    return default
+
 def _safe_str(val, max_len=None):
-    """Safely convert to string and optionally truncate to max_len to prevent DB truncation errors."""
+    """Safely convert to string, remove null bytes, and optionally truncate."""
     if val is None:
         return None
-    s = str(val)
+    s = str(val).replace("\x00", "")
     if max_len and len(s) > max_len:
         return s[:max_len]
     return s
@@ -56,38 +70,38 @@ def parse_sms_mms_xml(file_path: Path) -> tuple[list[dict], list[dict]]:
         if elem.tag == "sms":
             sms_records.append(
                 {
-                    "address": elem.get("address", ""),
+                    "address": _safe_str(elem.get("address", "")),
                     "date_ms": _safe_int(elem.get("date"), 0),
                     "readable_date": _safe_str(elem.get("readable_date"), 64),
-                    "type": _safe_int(elem.get("type"), 0),
-                    "body": elem.get("body", ""),
-                    "contact_name": elem.get("contact_name"),
-                    "read": _safe_int(elem.get("read")),
-                    "status": _safe_int(elem.get("status")),
-                    "service_center": elem.get("service_center"),
-                    "sub_id": _safe_int(elem.get("sub_id")),
+                    "type": _safe_smallint(elem.get("type"), 0),
+                    "body": _safe_str(elem.get("body", "")),
+                    "contact_name": _safe_str(elem.get("contact_name")),
+                    "read": _safe_smallint(elem.get("read")),
+                    "status": _safe_smallint(elem.get("status")),
+                    "service_center": _safe_str(elem.get("service_center")),
+                    "sub_id": _safe_int32(elem.get("sub_id")),
                 }
             )
             elem.clear()
 
         elif elem.tag == "mms":
-            address = elem.get("address", "")
-            contact_name = elem.get("contact_name")
+            address = _safe_str(elem.get("address", ""))
+            contact_name = _safe_str(elem.get("contact_name"))
 
             # Extract text body and media parts
             text_parts: list[str] = []
             parts_data: list[dict] = []
 
             for i, part in enumerate(elem.findall(".//part")):
-                ct = part.get("ct", "")
+                ct = _safe_str(part.get("ct", ""))
                 if ct.startswith("text/"):
-                    text_parts.append(part.get("text", ""))
+                    text_parts.append(_safe_str(part.get("text", "")))
                     parts_data.append(
                         {
                             "seq": i,
                             "content_type": ct,
-                            "name": part.get("name") or part.get("fn"),
-                            "text": part.get("text"),
+                            "name": _safe_str(part.get("name") or part.get("fn")),
+                            "text": _safe_str(part.get("text")),
                             "data": None,
                         }
                     )
@@ -106,7 +120,7 @@ def parse_sms_mms_xml(file_path: Path) -> tuple[list[dict], list[dict]]:
                         {
                             "seq": i,
                             "content_type": ct,
-                            "name": part.get("name") or part.get("fn"),
+                            "name": _safe_str(part.get("name") or part.get("fn")),
                             "text": None,
                             "data": decoded,
                         }
@@ -117,12 +131,12 @@ def parse_sms_mms_xml(file_path: Path) -> tuple[list[dict], list[dict]]:
                     "address": address,
                     "date_ms": _safe_int(elem.get("date"), 0),
                     "readable_date": _safe_str(elem.get("readable_date"), 64),
-                    "msg_box": _safe_int(
-                        elem.get("msg_box"), _safe_int(elem.get("type"), 0)
+                    "msg_box": _safe_smallint(
+                        elem.get("msg_box"), _safe_smallint(elem.get("type"), 0)
                     ),
-                    "subject": elem.get("sub"),
+                    "subject": _safe_str(elem.get("sub")),
                     "body": "\n".join(text_parts) if text_parts else None,
-                    "ct_t": elem.get("ct_t"),
+                    "ct_t": _safe_str(elem.get("ct_t")),
                     "contact_name": contact_name,
                     "_parts": parts_data,
                 }
@@ -147,13 +161,13 @@ def parse_calls_xml(file_path: Path) -> list[dict]:
         if elem.tag == "call":
             call_records.append(
                 {
-                    "number": elem.get("number", ""),
+                    "number": _safe_str(elem.get("number", "")),
                     "date_ms": _safe_int(elem.get("date"), 0),
                     "readable_date": _safe_str(elem.get("readable_date"), 64),
-                    "duration": _safe_int(elem.get("duration"), 0),
-                    "type": _safe_int(elem.get("type"), 0),
-                    "contact_name": elem.get("contact_name"),
-                    "presentation": _safe_int(elem.get("presentation")),
+                    "duration": _safe_int32(elem.get("duration"), 0),
+                    "type": _safe_smallint(elem.get("type"), 0),
+                    "contact_name": _safe_str(elem.get("contact_name")),
+                    "presentation": _safe_smallint(elem.get("presentation")),
                 }
             )
             elem.clear()
