@@ -30,6 +30,15 @@ def _safe_int(val, default=None):
     except (ValueError, TypeError):
         return default
 
+def _safe_str(val, max_len=None):
+    """Safely convert to string and optionally truncate to max_len to prevent DB truncation errors."""
+    if val is None:
+        return None
+    s = str(val)
+    if max_len and len(s) > max_len:
+        return s[:max_len]
+    return s
+
 
 def parse_sms_mms_xml(file_path: Path) -> tuple[list[dict], list[dict]]:
     """Stream-parse an SMS/MMS backup XML file.
@@ -49,7 +58,7 @@ def parse_sms_mms_xml(file_path: Path) -> tuple[list[dict], list[dict]]:
                 {
                     "address": elem.get("address", ""),
                     "date_ms": _safe_int(elem.get("date"), 0),
-                    "readable_date": elem.get("readable_date"),
+                    "readable_date": _safe_str(elem.get("readable_date"), 64),
                     "type": _safe_int(elem.get("type"), 0),
                     "body": elem.get("body", ""),
                     "contact_name": elem.get("contact_name"),
@@ -107,7 +116,7 @@ def parse_sms_mms_xml(file_path: Path) -> tuple[list[dict], list[dict]]:
                 {
                     "address": address,
                     "date_ms": _safe_int(elem.get("date"), 0),
-                    "readable_date": elem.get("readable_date"),
+                    "readable_date": _safe_str(elem.get("readable_date"), 64),
                     "msg_box": _safe_int(
                         elem.get("msg_box"), _safe_int(elem.get("type"), 0)
                     ),
@@ -140,7 +149,7 @@ def parse_calls_xml(file_path: Path) -> list[dict]:
                 {
                     "number": elem.get("number", ""),
                     "date_ms": _safe_int(elem.get("date"), 0),
-                    "readable_date": elem.get("readable_date"),
+                    "readable_date": _safe_str(elem.get("readable_date"), 64),
                     "duration": _safe_int(elem.get("duration"), 0),
                     "type": _safe_int(elem.get("type"), 0),
                     "contact_name": elem.get("contact_name"),

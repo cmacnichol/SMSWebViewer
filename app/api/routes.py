@@ -357,6 +357,8 @@ async def export_csv(
     for row in rows:
         writer.writerow([row["name"], row["phone"], row["date"], row["type"], row["source"], row["message"]])
 
+    logger.info(f"User {current_user.username} initiated CSV export for contact {normalized_address}")
+
     return Response(
         content=output.getvalue(), media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="conversation_{normalized_address}.csv"'},
@@ -409,6 +411,8 @@ async def export_json(
     # Remove internal sort key from output
     for r in data:
         del r["date_ms"]
+
+    logger.info(f"User {current_user.username} initiated JSON export for contact {normalized_address}")
 
     return Response(
         content=json.dumps(data, indent=2), media_type="application/json",
@@ -463,6 +467,8 @@ async def export_media(
     # Clean up the temp file after the response is sent
     background_tasks.add_task(os.unlink, tmp_name)
     
+    logger.info(f"User {current_user.username} initiated Media ZIP export for contact {normalized_address} ({count} attachments)")
+    
     return FileResponse(
         path=tmp_name,
         media_type="application/zip",
@@ -513,9 +519,11 @@ async def upload_xml(
         from app.services.pipeline import ingest_sms_mms_file, ingest_calls_file
         if file_type == "calls":
             call_count = await ingest_calls_file(temp_path, current_user.id)
+            logger.info(f"User {current_user.username} manually uploaded a Calls XML backup ({call_count} calls).")
             return {"message": "Calls ingested successfully", "calls": call_count}
         else:
             sms_count, mms_count = await ingest_sms_mms_file(temp_path, current_user.id)
+            logger.info(f"User {current_user.username} manually uploaded an SMS/MMS XML backup ({sms_count} SMS, {mms_count} MMS).")
             return {"message": "SMS/MMS ingested successfully", "sms": sms_count, "mms": mms_count}
     except HTTPException:
         raise

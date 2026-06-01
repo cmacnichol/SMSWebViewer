@@ -78,6 +78,7 @@ from app.core.mcp_server import mcp_user_id, mcp_is_global
 async def verify_mcp_token(request: Request, db: AsyncSession = Depends(get_session)):
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
+        logger.warning(f"MCP connection rejected: Missing or invalid Authorization header from {request.client.host}")
         raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
     
     token = auth_header[7:]
@@ -87,6 +88,7 @@ async def verify_mcp_token(request: Request, db: AsyncSession = Depends(get_sess
     api_token = (await db.execute(stmt)).scalar_one_or_none()
     
     if not api_token:
+        logger.warning(f"MCP connection rejected: Invalid or expired API token used from {request.client.host}")
         raise HTTPException(status_code=401, detail="Invalid API Token")
         
     mcp_user_id.set(api_token.user_id)
@@ -105,7 +107,8 @@ async def sse_asgi_app(scope, receive, send):
     request = Request(scope, receive, send)
     async with async_session_maker() as db:
         try:
-            await verify_mcp_token(request, db)
+            api_token = await verify_mcp_token(request, db)
+            logger.info(f"MCP client connected successfully via SSE (Token belonging to User ID: {api_token.user_id})")
         except HTTPException as e:
             response = JSONResponse(status_code=e.status_code, content={"detail": e.detail})
             return await response(scope, receive, send)

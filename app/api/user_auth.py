@@ -23,6 +23,9 @@ from app.models.user import User
 from app.models.api_token import ApiToken
 import hashlib
 import secrets
+import logging
+
+logger = logging.getLogger(__name__)
 
 settings = get_settings()
 router = APIRouter(prefix="/api/user", tags=["user_auth"])
@@ -67,8 +70,10 @@ async def login_basic(
     user = res.scalar()
     
     if not user or not verify_password(form_data.password, user.password_hash):
+        logger.warning(f"Failed Basic Auth login attempt for username: {form_data.username}")
         raise HTTPException(status_code=400, detail="Incorrect username or password")
         
+    logger.info(f"User {user.username} logged in successfully via Basic Auth.")
     # Create token
     access_token = create_access_token(data={"sub": user.id}, expires_delta=timedelta(days=7))
     
@@ -120,7 +125,9 @@ async def auth_oidc_callback(request: Request, db: AsyncSession = Depends(get_se
         db.add(user)
         await db.commit()
         await db.refresh(user)
+        logger.info(f"Auto-provisioned new OIDC user: {email}")
         
+    logger.info(f"User {user.username} logged in successfully via OIDC.")
     # Create session cookie
     access_token = create_access_token(data={"sub": user.id}, expires_delta=timedelta(days=7))
     
@@ -205,6 +212,7 @@ async def create_user(
     )
     db.add(new_user)
     await db.commit()
+    logger.info(f"Admin {current_user.username} created new user: {req.username} (role: {req.role})")
     return {"message": "User created successfully"}
 
 
@@ -233,6 +241,7 @@ async def delete_user(
             
     await db.delete(target_user)
     await db.commit()
+    logger.warning(f"Admin {current_user.username} deleted user: {target_user.username}")
     return {"message": "User deleted"}
 
 
@@ -271,6 +280,8 @@ async def create_token(
     db.add(new_token)
     await db.commit()
     
+    logger.info(f"User {current_user.username} generated a new API Token: '{req.description}' (Global: {req.is_global})")
+    
     return {
         "message": "Token generated successfully. Save it now, you won't be able to see it again.",
         "token": raw_token,
@@ -289,6 +300,7 @@ async def revoke_all_tokens(
     for token in tokens:
         await db.delete(token)
     await db.commit()
+    logger.warning(f"User {current_user.username} bulk-revoked all their API tokens ({len(tokens)} token(s)).")
     return {"message": f"Revoked {len(tokens)} token(s) successfully."}
 
 
@@ -310,4 +322,5 @@ async def revoke_token(
         
     await db.delete(token)
     await db.commit()
+    logger.info(f"User {current_user.username} revoked API token '{token.description}'")
     return {"message": "Token revoked"}
