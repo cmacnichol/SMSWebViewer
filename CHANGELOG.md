@@ -1,0 +1,25 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.2.0] - 2026-06-01
+
+### Added
+- **API Token Expiration:** Tokens now support explicit expiration dates (e.g., 30 days) for improved security.
+- **Bulk Token Revocation:** Added UI and API support (`DELETE /api/user/tokens/all`) to immediately revoke all active tokens.
+- **Client-Side Upload Validation:** The UI now warns you if an uploaded XML file exceeds the 4 GB limit before making a wasteful network request.
+
+### Changed
+- **XML Streaming Security:** Upgraded the XML ingestion pipeline to use the highly secure `DefusedXMLParser` directly integrated with Python's native `iterparse()`, protecting against advanced XXE and Billion Laughs bypasses without sacrificing streaming speed.
+- **Media Exports (ZIP):** Completely rewrote the `export_media` endpoint to stream attachments from PostgreSQL directly to disk in batches, preventing Out-Of-Memory (OOM) crashes on large multi-gigabyte media exports.
+- **Search Boundaries:** Enforced `min_length=1` and `max_length=500` limits for the `q` query parameter across global search and MCP search tools to prevent payload abuse.
+- **Export Consistency:** CSV and JSON exports now successfully combine and sort both SMS and MMS messages together in a unified conversation log.
+
+### Fixed
+- Fixed an SQLite-specific `strftime` incompatibility in `get_communication_frequency` that caused the MCP tool to fail when using a PostgreSQL backend.
+- Fixed a silent failure where the background scheduler cron expressions were not properly validated before saving to the database.
+- Fixed an issue where the file upload endpoint didn't properly enforce the chunk size limit, resulting in 413 Payload Too Large HTTP exceptions explicitly.
+- Fixed timezone comparison `TypeError` crashes during token authentication by ensuring all datetimes are UTC-aware.

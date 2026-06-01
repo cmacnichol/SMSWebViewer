@@ -8,10 +8,13 @@ import logging
 import mimetypes
 import zipfile
 import shutil
+import tempfile
+import os
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, UploadFile, File, Form, BackgroundTasks
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy import desc, distinct, func, or_, select, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,6 +31,9 @@ from app.services.pipeline import get_sync_status, run_ingestion_pipeline
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["api"])
+
+# 4 GB upload size limit
+MAX_UPLOAD_BYTES = 4 * 1024 * 1024 * 1024
 
 
 # ---------------------------------------------------------------------------
@@ -190,8 +196,8 @@ async def get_conversation(
 
 @router.get("/search/global", response_model=list[MessageResponse])
 async def global_search(
-    q: str,
-    limit: int = 50,
+    q: str = Query(..., min_length=1, max_length=500),
+    limit: int = Query(50, ge=1, le=500),
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
@@ -306,20 +312,50 @@ async def export_csv(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
-    """Export conversation as CSV download."""
-    stmt = (
+    """Export conversation as CSV download (SMS + MMS)."""
+    sms_stmt = (
         select(SMS)
         .where(SMS.user_id == current_user.id, SMS.normalized_address == normalized_address)
         .order_by(SMS.date_ms)
     )
-    results = (await session.execute(stmt)).scalars().all()
+    sms_results = (await session.execute(sms_stmt)).scalars().all()
+
+    mms_stmt = (
+        select(MMS)
+        .where(MMS.user_id == current_user.id, MMS.normalized_address == normalized_address)
+        .order_by(MMS.date_ms)
+    )
+    mms_results = (await session.execute(mms_stmt)).scalars().all()
+
+    # Merge and sort by timestamp
+    rows = []
+    for msg in sms_results:
+        rows.append({
+            "date_ms": msg.date_ms,
+            "name": msg.contact_name or "Unknown",
+            "phone": normalized_address,
+            "date": msg.readable_date,
+            "type": "Received" if msg.type == 1 else "Sent",
+            "message": msg.body or "",
+            "source": "SMS",
+        })
+    for msg in mms_results:
+        rows.append({
+            "date_ms": msg.date_ms,
+            "name": msg.contact_name or "Unknown",
+            "phone": normalized_address,
+            "date": msg.readable_date,
+            "type": "Received" if msg.msg_box == 1 else "Sent",
+            "message": msg.body or "[Media]",
+            "source": "MMS",
+        })
+    rows.sort(key=lambda r: r["date_ms"])
 
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["Name", "Phone", "Date", "Type", "Message"])
-    for msg in results:
-        msg_type = "Received" if msg.type == 1 else "Sent"
-        writer.writerow([msg.contact_name or "Unknown", normalized_address, msg.readable_date, msg_type, msg.body])
+    writer.writerow(["Name", "Phone", "Date", "Type", "Source", "Message"])
+    for row in rows:
+        writer.writerow([row["name"], row["phone"], row["date"], row["type"], row["source"], row["message"]])
 
     return Response(
         content=output.getvalue(), media_type="text/csv",
@@ -333,18 +369,46 @@ async def export_json(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
-    """Export conversation as JSON download."""
-    stmt = (
+    """Export conversation as JSON download (SMS + MMS)."""
+    sms_stmt = (
         select(SMS)
         .where(SMS.user_id == current_user.id, SMS.normalized_address == normalized_address)
         .order_by(SMS.date_ms)
     )
-    results = (await session.execute(stmt)).scalars().all()
+    sms_results = (await session.execute(sms_stmt)).scalars().all()
 
-    data = [
-        {"name": msg.contact_name, "phone": normalized_address, "date": msg.readable_date, "type": msg.type, "body": msg.body}
-        for msg in results
-    ]
+    mms_stmt = (
+        select(MMS)
+        .where(MMS.user_id == current_user.id, MMS.normalized_address == normalized_address)
+        .order_by(MMS.date_ms)
+    )
+    mms_results = (await session.execute(mms_stmt)).scalars().all()
+
+    data = []
+    for msg in sms_results:
+        data.append({
+            "date_ms": msg.date_ms,
+            "name": msg.contact_name,
+            "phone": normalized_address,
+            "date": msg.readable_date,
+            "type": msg.type,
+            "source": "sms",
+            "body": msg.body,
+        })
+    for msg in mms_results:
+        data.append({
+            "date_ms": msg.date_ms,
+            "name": msg.contact_name,
+            "phone": normalized_address,
+            "date": msg.readable_date,
+            "type": msg.msg_box,
+            "source": "mms",
+            "body": msg.body,
+        })
+    data.sort(key=lambda r: r["date_ms"])
+    # Remove internal sort key from output
+    for r in data:
+        del r["date_ms"]
 
     return Response(
         content=json.dumps(data, indent=2), media_type="application/json",
@@ -355,37 +419,54 @@ async def export_json(
 @router.get("/export/media/{normalized_address}")
 async def export_media(
     normalized_address: str,
+    background_tasks: BackgroundTasks,
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
     """Export all media attachments for a conversation as a ZIP file."""
+    # Query only the MMSPart and the dates directly to avoid loading entire MMS objects
     stmt = (
-        select(MMS)
-        .options(selectinload(MMS.parts))
+        select(MMSPart, MMS.readable_date, MMS.date_ms)
+        .join(MMS)
         .where(MMS.user_id == current_user.id, MMS.normalized_address == normalized_address)
+        .where(MMSPart.data.isnot(None))
         .order_by(MMS.date_ms)
     )
-    results = (await session.execute(stmt)).scalars().all()
+    
+    # Use yield_per to stream results from the database, preventing OOM
+    results = await session.stream(stmt.execution_options(yield_per=100))
 
-    output = io.BytesIO()
-    with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as zf:
-        count = 0
-        for mms in results:
-            for part in mms.parts:
-                if part.data:
-                    ext = mimetypes.guess_extension(part.content_type) or ".bin"
-                    if ext == ".jpe": ext = ".jpg"
-                    date_str = (mms.readable_date or f"ts_{mms.date_ms}").replace(":", "-").replace(" ", "_").replace("/", "-")
-                    filename = f"{date_str}_{part.id}{ext}"
-                    zf.writestr(filename, part.data)
-                    count += 1
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
+    tmp_name = tmp.name
+    count = 0
+
+    try:
+        with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as zf:
+            async for part, readable_date, date_ms in results:
+                ext = mimetypes.guess_extension(part.content_type) or ".bin"
+                if ext == ".jpe": ext = ".jpg"
+                date_str = (readable_date or f"ts_{date_ms}").replace(":", "-").replace(" ", "_").replace("/", "-")
+                filename = f"{date_str}_{part.id}{ext}"
+                zf.writestr(filename, part.data)
+                count += 1
+    except Exception as e:
+        tmp.close()
+        os.unlink(tmp_name)
+        raise e
+        
+    tmp.close()
     
     if count == 0:
+        os.unlink(tmp_name)
         raise HTTPException(status_code=404, detail="No media attachments found for this contact.")
 
-    return Response(
-        content=output.getvalue(), media_type="application/zip",
-        headers={"Content-Disposition": f'attachment; filename="media_{normalized_address}.zip"'},
+    # Clean up the temp file after the response is sent
+    background_tasks.add_task(os.unlink, tmp_name)
+    
+    return FileResponse(
+        path=tmp_name,
+        media_type="application/zip",
+        filename=f'media_{normalized_address}.zip'
     )
 
 
@@ -404,16 +485,31 @@ async def get_sync_status_endpoint(current_user: User = Depends(get_current_user
 
 @router.post("/upload")
 async def upload_xml(
+    request: Request,
     file: UploadFile = File(...),
     file_type: str = Form(...),
     current_user: User = Depends(get_current_user)
 ):
-    """Manually upload and ingest an XML backup."""
+    """Manually upload and ingest an XML backup. Maximum file size: 4 GB."""
+    # Enforce 4 GB size limit by streaming in chunks
     temp_path = Path(f"/tmp/manual_upload_{current_user.id}_{file.filename}")
-    with temp_path.open("wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-        
+    bytes_written = 0
+    chunk_size = 1024 * 1024  # 1 MB chunks
+
     try:
+        with temp_path.open("wb") as buffer:
+            while True:
+                chunk = await file.read(chunk_size)
+                if not chunk:
+                    break
+                bytes_written += len(chunk)
+                if bytes_written > MAX_UPLOAD_BYTES:
+                    raise HTTPException(
+                        status_code=413,
+                        detail=f"File too large. Maximum upload size is {MAX_UPLOAD_BYTES // (1024**3)} GB."
+                    )
+                buffer.write(chunk)
+
         from app.services.pipeline import ingest_sms_mms_file, ingest_calls_file
         if file_type == "calls":
             call_count = await ingest_calls_file(temp_path, current_user.id)
@@ -421,6 +517,8 @@ async def upload_xml(
         else:
             sms_count, mms_count = await ingest_sms_mms_file(temp_path, current_user.id)
             return {"message": "SMS/MMS ingested successfully", "sms": sms_count, "mms": mms_count}
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception(f"Manual upload ingestion failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))

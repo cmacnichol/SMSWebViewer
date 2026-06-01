@@ -21,9 +21,29 @@ services:
       - OIDC_CLIENT_ID=${OIDC_CLIENT_ID:-}
       - OIDC_CLIENT_SECRET=${OIDC_CLIENT_SECRET:-}
       - OIDC_ISSUER_URL=${OIDC_ISSUER_URL:-}
+      - RUN_MIGRATIONS=false
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/health').raise_for_status()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  worker:
+    build: .
+    container_name: smsviewer-worker
+    command: ["runuser", "-u", "appuser", "--", "python", "-m", "app.worker"]
+    volumes:
+      - ./data:/data
+      - ./config:/config
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-sqlite+aiosqlite:////data/smsviewer.db}
+      - GCP_CLIENT_ID=${GCP_CLIENT_ID:-}
+      - GCP_CLIENT_SECRET=${GCP_CLIENT_SECRET:-}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "sh", "-c", "find /tmp/worker_heartbeat -mmin -2 | grep -q . || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3

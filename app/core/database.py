@@ -31,26 +31,53 @@ async_session_maker = async_sessionmaker(
 
 
 async def init_db() -> None:
-    """Create all tables using metadata.create_all (no Alembic)."""
-    # Import models so they register with Base.metadata
-    from app.models.sms import SMS  # noqa: F401
-    from app.models.mms import MMS, MMSPart  # noqa: F401
-    from app.models.call import Call  # noqa: F401
-    from app.models.base import Base
-
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    """Run Alembic upgrades and data migrations."""
+    import logging
+    import asyncio
+    
+    logger = logging.getLogger(__name__)
+    
+    from sqlalchemy import inspect
+    def get_tables(sync_conn):
+        return inspect(sync_conn).get_table_names()
         
-        # Simple migration for new columns
-        from sqlalchemy import text
-        try:
-            async with conn.begin_nested():
-                await conn.execute(text("ALTER TABLE app_config ADD COLUMN sync_schedule VARCHAR DEFAULT '0 2 * * *'"))
-        except Exception:
-            pass # Column already exists
+    async with engine.connect() as conn:
+        tables = await conn.run_sync(get_tables)
+        
+    has_legacy = "app_config" in tables
+    has_alembic = "alembic_version" in tables
+    
+    if has_legacy and not has_alembic:
+        logger.info("Legacy pre-Alembic database detected. Bootstrapping schema to baseline...")
+        from app.core.db_migration import bootstrap_legacy_schema
+        async with engine.begin() as conn:
+            await bootstrap_legacy_schema(conn)
             
-        # Multi-tenant migration
-        from app.core.db_migration import run_multi_tenant_migration
+        logger.info("Stamping database with Alembic baseline...")
+        proc = await asyncio.create_subprocess_exec(
+            "alembic", "stamp", "head",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await proc.communicate()
+        if proc.returncode != 0:
+            raise Exception(f"Alembic stamp failed: STDERR: {stderr.decode()} STDOUT: {stdout.decode()}")
+    else:
+        logger.info("Running database migrations via Alembic...")
+        proc = await asyncio.create_subprocess_exec(
+            "alembic", "upgrade", "head",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await proc.communicate()
+        if proc.returncode != 0:
+            raise Exception(f"Alembic upgrade failed: {stderr.decode()}")
+        
+    logger.info(f"Alembic migrations completed successfully. Output: {stdout.decode()}")
+    
+    # Multi-tenant data migration
+    from app.core.db_migration import run_multi_tenant_migration
+    async with engine.begin() as conn:
         await run_multi_tenant_migration(conn)
 
 

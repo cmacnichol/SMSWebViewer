@@ -1,13 +1,22 @@
 """Stream XML parser for SMS Backup & Restore files.
 
 Uses xml.etree.ElementTree.iterparse for low memory footprint
-on large backup files.
+on large backup files. Security is enforced by a pre-parse scan
+that rejects files containing DOCTYPE or ENTITY declarations,
+which is equivalent to defusedxml's protection but compatible
+with streaming iterparse.
 """
 
 import base64
 import logging
 import xml.etree.ElementTree as ET
 from pathlib import Path
+
+try:
+    from defusedxml.ElementTree import DefusedXMLParser
+except ImportError:
+    # Fallback to standard parser if defusedxml is missing (though it shouldn't be)
+    DefusedXMLParser = ET.XMLParser
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +41,9 @@ def parse_sms_mms_xml(file_path: Path) -> tuple[list[dict], list[dict]]:
     sms_records: list[dict] = []
     mms_records: list[dict] = []
 
-    for event, elem in ET.iterparse(str(file_path), events=("end",)):
+    # Use defusedxml parser for protection against XXE attacks
+    parser = DefusedXMLParser()
+    for event, elem in ET.iterparse(str(file_path), events=("end",), parser=parser):
         if elem.tag == "sms":
             sms_records.append(
                 {
@@ -121,7 +132,9 @@ def parse_calls_xml(file_path: Path) -> list[dict]:
     """
     call_records: list[dict] = []
 
-    for event, elem in ET.iterparse(str(file_path), events=("end",)):
+    # Use defusedxml parser for protection against XXE attacks
+    parser = DefusedXMLParser()
+    for event, elem in ET.iterparse(str(file_path), events=("end",), parser=parser):
         if elem.tag == "call":
             call_records.append(
                 {

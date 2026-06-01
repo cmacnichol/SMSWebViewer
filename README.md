@@ -56,6 +56,7 @@ Then run `docker-compose up -d`.
 - **Multi-User Management** - Support for multiple users with configurable permission levels, role-based access control, and password authentication (can be disabled via `AUTH_MODE=NONE`).
 - **AI-Ready (MCP Enabled)** - Built with an integrated Model Context Protocol (FastMCP) server to expose your database to external AI agents securely. Generate personal API tokens directly from the UI.
 - **Full Privacy** - No telemetry. Operates entirely on your local machine using your own Google API credentials.
+- **Continuous Improvement** - See the [CHANGELOG](CHANGELOG.md) for the latest features, security patches, and memory optimizations.
 
 ## Tech Stack
 

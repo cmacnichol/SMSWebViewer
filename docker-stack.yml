@@ -30,6 +30,7 @@ services:
       - AUTH_MODE=${AUTH_MODE:-NONE}
       - APP_HOST=0.0.0.0
       - APP_PORT=8000
+      - RUN_MIGRATIONS=false
     secrets:
       - database_url
       - secret_key

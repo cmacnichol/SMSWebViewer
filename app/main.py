@@ -1,6 +1,6 @@
 """FastAPI application entry point.
 
-Configures lifespan (DB init, scheduler), mounts API router,
+Configures lifespan (DB init), mounts API router,
 MCP SSE transport, and static frontend files.
 """
 

@@ -37,7 +37,9 @@ def apply_tenant_filter(stmt, model):
 
 @mcp.tool()
 async def query_contacts(search: str) -> list[dict]:
-    """Look up contacts by name or normalized phone number."""
+    """Look up contacts by name or normalized phone number. Search string must be 1-200 characters."""
+    if not search or len(search) > 200:
+        return [{"error": "Search string must be between 1 and 200 characters."}]
     async with async_session_maker() as session:
         pattern = f"%{search}%"
         stmt = (
@@ -70,7 +72,9 @@ async def query_contacts(search: str) -> list[dict]:
 
 @mcp.tool()
 async def search_messages(query: str, limit: int = 50) -> list[dict]:
-    """Full-text search across all SMS and MMS messages."""
+    """Full-text search across all SMS and MMS messages. Query must be 1-500 characters."""
+    if not query or len(query) > 500:
+        return [{"error": "Search query must be between 1 and 500 characters."}]
     async with async_session_maker() as session:
         pattern = f"%{query}%"
 
@@ -422,33 +426,34 @@ async def get_conversation_text(normalized_number: str, days: int = 30) -> str:
 @mcp.tool()
 async def get_communication_frequency(normalized_number: str) -> dict:
     """Return a breakdown of message volume per month for a contact."""
+    from datetime import datetime
     async with async_session_maker() as session:
-        stmt_sms = select(
-            func.strftime('%Y-%m', func.datetime(SMS.date_ms / 1000, 'unixepoch')).label('month'),
-            func.count(SMS.id).label('count')
-        ).where(SMS.normalized_address == normalized_number)
-        stmt_sms = apply_tenant_filter(stmt_sms, SMS).group_by('month')
+        # Fetch all messages with timestamps and compute month grouping in Python
+        # (avoids SQLite-specific strftime which breaks on PostgreSQL)
+        sms_stmt = select(SMS.date_ms).where(SMS.normalized_address == normalized_number)
+        sms_stmt = apply_tenant_filter(sms_stmt, SMS)
         
-        stmt_mms = select(
-            func.strftime('%Y-%m', func.datetime(MMS.date_ms / 1000, 'unixepoch')).label('month'),
-            func.count(MMS.id).label('count')
-        ).where(MMS.normalized_address == normalized_number)
-        stmt_mms = apply_tenant_filter(stmt_mms, MMS).group_by('month')
+        mms_stmt = select(MMS.date_ms).where(MMS.normalized_address == normalized_number)
+        mms_stmt = apply_tenant_filter(mms_stmt, MMS)
         
-        sms_res = (await session.execute(stmt_sms)).all()
-        mms_res = (await session.execute(stmt_mms)).all()
-        
-        freq = {}
-        for r in sms_res:
-            freq[r.month] = freq.get(r.month, 0) + r.count
-        for r in mms_res:
-            freq[r.month] = freq.get(r.month, 0) + r.count
-            
-        sorted_freq = dict(sorted(freq.items()))
-        return {
-            "normalized_number": normalized_number,
-            "monthly_message_count": sorted_freq
-        }
+        sms_dates = (await session.execute(sms_stmt)).scalars().all()
+        mms_dates = (await session.execute(mms_stmt)).scalars().all()
+
+    freq: dict[str, int] = {}
+    for date_ms in sms_dates:
+        if date_ms:
+            month = datetime.fromtimestamp(date_ms / 1000).strftime("%Y-%m")
+            freq[month] = freq.get(month, 0) + 1
+    for date_ms in mms_dates:
+        if date_ms:
+            month = datetime.fromtimestamp(date_ms / 1000).strftime("%Y-%m")
+            freq[month] = freq.get(month, 0) + 1
+
+    sorted_freq = dict(sorted(freq.items()))
+    return {
+        "normalized_number": normalized_number,
+        "monthly_message_count": sorted_freq
+    }
 
 _background_tasks = set()
 

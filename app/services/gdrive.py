@@ -131,7 +131,7 @@ async def download_xml(is_calls: bool = False, last_modified: str | None = None,
             raise ValueError("No sync folder selected in Google Drive settings.")
         folder_id = config.gdrive_sync_folder_id
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
 
     # Run synchronous Google API calls in a thread
     def _sync_download():

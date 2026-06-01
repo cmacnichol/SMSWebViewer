@@ -508,6 +508,19 @@ manualUploadBtn.addEventListener('click', () => {
 xmlUploadInput.addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+
+    // Client-side size guard — mirrors the server-side 4 GB limit
+    const MAX_UPLOAD_BYTES = 4 * 1024 * 1024 * 1024; // 4 GB
+    if (file.size > MAX_UPLOAD_BYTES) {
+        const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+        alert(
+            `❌ File too large\n\n` +
+            `"${file.name}" is ${sizeMB} MB, which exceeds the maximum upload size of 4 GB.\n\n` +
+            `Please split the backup into smaller files and try again.`
+        );
+        xmlUploadInput.value = '';
+        return;
+    }
     
     // Simple heuristic to determine if calls or sms
     let fileType = "sms";

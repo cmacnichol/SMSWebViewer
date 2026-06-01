@@ -32,6 +32,8 @@ COPY --from=deps /usr/local/bin /usr/local/bin
 
 # Copy application code
 COPY app/ ./app/
+COPY alembic.ini .
+COPY alembic/ ./alembic/
 COPY entrypoint.sh .
 
 # Create required directories

@@ -2,10 +2,11 @@
 
 import asyncio
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from googleapiclient.discovery import build
+from apscheduler.triggers.cron import CronTrigger
 
 from app.core.database import get_session
 from app.core.security import get_current_user
@@ -19,6 +20,20 @@ router = APIRouter(prefix="/api/gdrive", tags=["gdrive"])
 class FolderSettingsUpdate(BaseModel):
     folder_id: str
     sync_schedule: str = "manual"
+
+    @field_validator("sync_schedule")
+    @classmethod
+    def validate_sync_schedule(cls, v: str) -> str:
+        if v == "manual":
+            return v
+        try:
+            CronTrigger.from_crontab(v)
+        except Exception:
+            raise ValueError(
+                f"Invalid cron expression: '{v}'. "
+                "Use standard 5-field cron syntax (e.g. '0 2 * * *') or 'manual'."
+            )
+        return v
 
 
 @router.get("/folders")
@@ -36,7 +51,7 @@ async def list_folders(
     try:
         credentials = await get_credentials(session, current_user.id)
         
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         def _fetch_folders():
             service = build("drive", "v3", credentials=credentials, cache_discovery=False)
             query = "mimeType='application/vnd.google-apps.folder' and trashed=false"
@@ -68,7 +83,7 @@ async def update_settings(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
-    """Save the selected Google Drive sync folder ID."""
+    """Save the selected Google Drive sync folder ID and sync schedule."""
     stmt = select(AppConfig).where(AppConfig.user_id == current_user.id)
     config = (await session.execute(stmt)).scalar_one_or_none()
 
@@ -80,7 +95,6 @@ async def update_settings(
     config.sync_schedule = update.sync_schedule
     await session.commit()
     
-    from app.core.scheduler import reschedule_sync_job
-    await reschedule_sync_job(config.sync_schedule, current_user.id)
+    # The worker polls the DB every 60s and will pick up the new schedule automatically.
     
     return {"status": "ok", "folder_id": config.gdrive_sync_folder_id, "sync_schedule": config.sync_schedule}

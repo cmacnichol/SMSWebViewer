@@ -1,5 +1,5 @@
-from datetime import timedelta
-from typing import Any
+from datetime import datetime, timedelta, timezone
+from typing import Any, Optional
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -46,6 +46,11 @@ class CreateUserRequest(BaseModel):
 class ChangePasswordRequest(BaseModel):
     current_password: str
     new_password: str = Field(min_length=8)
+
+class CreateTokenRequest(BaseModel):
+    description: str = "Generated API Token"
+    is_global: bool = False
+    expires_in_days: Optional[int] = Field(default=None, ge=1, le=3650, description="Token lifetime in days. Omit for non-expiring tokens.")
 
 
 @router.post("/login")
@@ -241,33 +246,55 @@ async def list_tokens(current_user: User = Depends(get_current_user), db: AsyncS
 
 @router.post("/tokens")
 async def create_token(
-    is_global: bool = False,
-    description: str = "Generated API Token",
+    req: CreateTokenRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_session)
 ):
     """Generate a new API token. Only admins can generate global tokens."""
-    if is_global and current_user.role != "admin":
+    if req.is_global and current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Only admins can create global tokens")
         
     raw_token = "mcp_" + secrets.token_urlsafe(32)
     token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+
+    expires_at = None
+    if req.expires_in_days:
+        expires_at = datetime.now(timezone.utc) + timedelta(days=req.expires_in_days)
     
     new_token = ApiToken(
         user_id=current_user.id,
         token_hash=token_hash,
-        is_global=is_global,
-        description=description
+        is_global=req.is_global,
+        description=req.description,
+        expires_at=expires_at,
     )
     db.add(new_token)
     await db.commit()
     
-    return {"message": "Token generated successfully. Save it now, you won't be able to see it again.", "token": raw_token}
+    return {
+        "message": "Token generated successfully. Save it now, you won't be able to see it again.",
+        "token": raw_token,
+        "expires_at": expires_at.isoformat() if expires_at else None,
+    }
+
+
+@router.delete("/tokens/all")
+async def revoke_all_tokens(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_session)
+):
+    """Revoke ALL API tokens for the current user."""
+    stmt = select(ApiToken).where(ApiToken.user_id == current_user.id)
+    tokens = (await db.execute(stmt)).scalars().all()
+    for token in tokens:
+        await db.delete(token)
+    await db.commit()
+    return {"message": f"Revoked {len(tokens)} token(s) successfully."}
 
 
 @router.delete("/tokens/{token_id}")
 async def revoke_token(
-    token_id: int,
+    token_id: str,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_session)
 ):

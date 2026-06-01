@@ -19,3 +19,5 @@ authlib==1.4.0
 passlib==1.7.4
 bcrypt==3.2.2
 pyjwt==2.10.1
+alembic==1.13.1
+defusedxml==0.7.1

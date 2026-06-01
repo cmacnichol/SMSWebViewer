@@ -5,15 +5,17 @@ echo "=== SMS Web Viewer ==="
 echo "Fixing permissions for /data and /config..."
 chown -R appuser:appuser /data /config
 
-echo "Initializing database..."
-
-# Initialize database tables
-runuser -u appuser -- python -c "
+if [ "${RUN_MIGRATIONS:-true}" = "true" ]; then
+    echo "Initializing database..."
+    runuser -u appuser -- python -c "
 import asyncio
 from app.core.database import init_db
 asyncio.run(init_db())
 print('Database initialized successfully.')
 "
+else
+    echo "Skipping database initialization (RUN_MIGRATIONS is false)."
+fi
 
 echo "Starting server on ${APP_HOST:-0.0.0.0}:${APP_PORT:-8000}..."
 

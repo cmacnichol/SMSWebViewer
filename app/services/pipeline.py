@@ -1,5 +1,6 @@
 """Ingestion pipeline orchestrator: Google Drive -> XML -> Normalize -> DB."""
 
+import asyncio
 import json
 import logging
 from datetime import datetime, timezone

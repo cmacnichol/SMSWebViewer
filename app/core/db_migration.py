@@ -7,38 +7,24 @@ from app.core.security import get_password_hash
 
 logger = logging.getLogger(__name__)
 
-async def run_multi_tenant_migration(conn: AsyncConnection):
-    """
-    Adds user_id to existing tables and migrates legacy data to a Default Admin user.
-    """
+async def bootstrap_legacy_schema(conn: AsyncConnection):
+    """Upgrades a pre-alembic legacy database to the baseline schema."""
     tables_to_migrate = ["sms", "mms", "calls", "app_config"]
-    migration_needed = False
-
     for table in tables_to_migrate:
         try:
             async with conn.begin_nested():
-                # In SQLite, adding a foreign key column without constraints is safe.
                 await conn.execute(text(f"ALTER TABLE {table} ADD COLUMN user_id VARCHAR REFERENCES users(id)"))
-                logger.info(f"Added user_id column to {table}.")
-        except Exception as e:
-            if "duplicate column name" in str(e).lower() or "already exists" in str(e).lower():
-                pass # Already migrated
-            else:
-                logger.error(f"Error adding user_id to {table}: {e}")
-                
-    # Add sync state columns to app_config
-    for col in ["last_sms_modified", "last_calls_modified", "last_sync_status", "last_sync_time", "last_sync_error", "last_sync_stats"]:
+        except Exception:
+            pass
+
+    for col in ["last_sms_modified", "last_calls_modified", "last_sync_status", "last_sync_time", "last_sync_error", "last_sync_stats", "sync_schedule"]:
         try:
             async with conn.begin_nested():
-                await conn.execute(text(f"ALTER TABLE app_config ADD COLUMN {col} VARCHAR"))
-                logger.info(f"Added {col} column to app_config.")
-        except Exception as e:
-            if "duplicate column name" in str(e).lower() or "already exists" in str(e).lower():
-                pass
-            else:
-                logger.error(f"Error adding {col} to app_config: {e}")
-                
-    # Increase column sizes for PostgreSQL (SQLite ignores VARCHAR length)
+                default = "'0 2 * * *'" if col == "sync_schedule" else "NULL"
+                await conn.execute(text(f"ALTER TABLE app_config ADD COLUMN {col} VARCHAR DEFAULT {default}"))
+        except Exception:
+            pass
+            
     if conn.dialect.name == "postgresql":
         alter_statements = [
             "ALTER TABLE calls ALTER COLUMN number TYPE TEXT",
@@ -59,8 +45,14 @@ async def run_multi_tenant_migration(conn: AsyncConnection):
             try:
                 async with conn.begin_nested():
                     await conn.execute(text(stmt))
-            except Exception as e:
-                logger.warning(f"Column resize migration error for {stmt}: {e}")
+            except Exception:
+                pass
+
+async def run_multi_tenant_migration(conn: AsyncConnection):
+    """
+    Migrates legacy data to a Default Admin user.
+    """
+    tables_to_migrate = ["sms", "mms", "calls", "app_config"]
 
     # Check if users table has an admin user
     res = await conn.execute(text("SELECT id, password_hash FROM users WHERE role = 'admin' LIMIT 1"))
