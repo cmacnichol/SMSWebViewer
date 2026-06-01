@@ -61,6 +61,8 @@ async def sync_schedules_from_db():
                 scheduler.remove_job(job_id)
             del _current_schedules[user_id]
 
+from pathlib import Path
+
 async def main():
     logger.info("Initializing database from worker...")
     await init_db()
@@ -69,11 +71,17 @@ async def main():
     scheduler._eventloop = asyncio.get_running_loop()
     scheduler.start()
     
+    heartbeat_file = Path("/tmp/worker_heartbeat")
+    
     while True:
         try:
             await sync_schedules_from_db()
         except Exception as e:
             logger.error(f"Error syncing schedules from DB: {e}")
+            
+        # Update heartbeat file for Docker healthcheck
+        heartbeat_file.touch(exist_ok=True)
+        
         await asyncio.sleep(60)
 
 if __name__ == "__main__":
