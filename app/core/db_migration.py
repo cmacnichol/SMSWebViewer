@@ -41,13 +41,19 @@ async def run_multi_tenant_migration(conn: AsyncConnection):
     # Increase column sizes for PostgreSQL (SQLite ignores VARCHAR length)
     if conn.dialect.name == "postgresql":
         alter_statements = [
-            "ALTER TABLE calls ALTER COLUMN number TYPE VARCHAR(255)",
-            "ALTER TABLE calls ALTER COLUMN normalized_number TYPE VARCHAR(255)",
-            "ALTER TABLE sms ALTER COLUMN address TYPE VARCHAR(255)",
-            "ALTER TABLE sms ALTER COLUMN normalized_address TYPE VARCHAR(255)",
-            "ALTER TABLE sms ALTER COLUMN service_center TYPE VARCHAR(255)",
-            "ALTER TABLE mms ALTER COLUMN address TYPE VARCHAR(255)",
-            "ALTER TABLE mms ALTER COLUMN normalized_address TYPE VARCHAR(255)"
+            "ALTER TABLE calls ALTER COLUMN number TYPE TEXT",
+            "ALTER TABLE calls ALTER COLUMN normalized_number TYPE TEXT",
+            "ALTER TABLE calls ALTER COLUMN contact_name TYPE TEXT",
+            "ALTER TABLE sms ALTER COLUMN address TYPE TEXT",
+            "ALTER TABLE sms ALTER COLUMN normalized_address TYPE TEXT",
+            "ALTER TABLE sms ALTER COLUMN contact_name TYPE TEXT",
+            "ALTER TABLE sms ALTER COLUMN service_center TYPE TEXT",
+            "ALTER TABLE mms ALTER COLUMN address TYPE TEXT",
+            "ALTER TABLE mms ALTER COLUMN normalized_address TYPE TEXT",
+            "ALTER TABLE mms ALTER COLUMN contact_name TYPE TEXT",
+            "ALTER TABLE mms ALTER COLUMN ct_t TYPE TEXT",
+            "ALTER TABLE mms_parts ALTER COLUMN name TYPE TEXT",
+            "ALTER TABLE mms_parts ALTER COLUMN content_type TYPE TEXT"
         ]
         for stmt in alter_statements:
             try:

@@ -423,13 +423,13 @@ function updateSyncStatus(data) {
         progressBar.classList.remove('bg-success');
         
         let pct = 0;
-        if (data.stats && typeof data.stats.progress === 'number') {
+        if (data.stats && data.stats.processing) {
+            syncText.textContent = `Processing ${data.stats.processing}...`;
+            pct = 100;
+        } else if (data.stats && typeof data.stats.progress === 'number') {
             pct = data.stats.progress;
             const type = data.stats.progress_type || '';
             syncText.textContent = `Downloading ${type} (${pct}%)...`;
-        } else if (data.stats && data.stats.processing) {
-            syncText.textContent = `Processing ${data.stats.processing}...`;
-            pct = 100;
         }
         progressBar.style.width = `${pct}%`;
     } else if (data.status === 'error') {

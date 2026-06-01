@@ -72,11 +72,18 @@ async def _update_db_status(user_id: str, status: str, error: str = None, stats:
 
 
 def make_progress_callback(u_id: str, file_type: str):
+    loop = asyncio.get_running_loop()
     def callback(pct: int):
         if u_id not in _last_sync:
             _last_sync[u_id] = {"status": "running", "stats": {}}
         _last_sync[u_id]["stats"]["progress"] = pct
         _last_sync[u_id]["stats"]["progress_type"] = file_type
+        
+        # Flush progress to DB so the web container can read it
+        asyncio.run_coroutine_threadsafe(
+            _update_db_status(u_id, "running", stats=_last_sync[u_id]["stats"]),
+            loop
+        )
     return callback
 
 
@@ -172,6 +179,7 @@ async def run_ingestion_pipeline(user_id: str) -> None:
                 logger.info("SMS/MMS backup is already up to date.")
             else:
                 _last_sync[user_id]["stats"]["processing"] = "SMS/MMS"
+                await _update_db_status(user_id, "running", stats=_last_sync[user_id]["stats"])
                 sms_count, mms_count = await ingest_sms_mms_file(xml_path, user_id)
                 xml_path.unlink(missing_ok=True)
                 last_sms_modified = new_sms_time
@@ -187,6 +195,7 @@ async def run_ingestion_pipeline(user_id: str) -> None:
                 logger.info("Call log backup is already up to date.")
             else:
                 _last_sync[user_id]["stats"]["processing"] = "Calls"
+                await _update_db_status(user_id, "running", stats=_last_sync[user_id]["stats"])
                 call_count = await ingest_calls_file(calls_path, user_id)
                 calls_path.unlink(missing_ok=True)
                 last_calls_modified = new_calls_time

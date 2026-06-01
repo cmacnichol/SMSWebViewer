@@ -20,9 +20,9 @@ class Call(Base):
 
     # Relationships
     user: Mapped["User"] = relationship(back_populates="calls")
-    number: Mapped[str] = mapped_column(String(255), index=True)
-    normalized_number: Mapped[str] = mapped_column(String(255), index=True)
-    contact_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    number: Mapped[str] = mapped_column(Text, index=True)
+    normalized_number: Mapped[str] = mapped_column(Text, index=True)
+    contact_name: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     date_ms: Mapped[int] = mapped_column(BigInteger)
     readable_date: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     duration: Mapped[int] = mapped_column(Integer, default=0)  # seconds

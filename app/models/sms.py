@@ -22,9 +22,9 @@ class SMS(Base):
     user: Mapped["User"] = relationship(back_populates="sms_messages")
 
     # Addresses
-    address: Mapped[str] = mapped_column(String(255), index=True)
-    normalized_address: Mapped[str] = mapped_column(String(255), index=True)
-    contact_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    address: Mapped[str] = mapped_column(Text, index=True)
+    normalized_address: Mapped[str] = mapped_column(Text, index=True)
+    contact_name: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Timestamps
     date_ms: Mapped[int] = mapped_column(BigInteger)
@@ -35,7 +35,7 @@ class SMS(Base):
     body: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     read: Mapped[Optional[int]] = mapped_column(SmallInteger, nullable=True)
     status: Mapped[Optional[int]] = mapped_column(SmallInteger, nullable=True)
-    service_center: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    service_center: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     sub_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
     # Audit

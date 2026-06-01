@@ -61,35 +61,65 @@ async def bulk_insert_mms(
     parts_map: list[tuple[str, list[dict]]] | None = None,
 ) -> int:
     """Insert MMS records with deduplication, then insert associated parts."""
-    count = await bulk_upsert(session, MMS, records)
+    if not records:
+        return 0
+
+    # 1. Fetch existing hashes to prevent duplicate MMSPart insertion
+    existing_hashes = set()
+    all_hashes = [r["hash"] for r in records]
+    for i in range(0, len(all_hashes), 500):
+        batch_hashes = all_hashes[i : i + 500]
+        result = await session.execute(
+            select(MMS.hash).where(MMS.hash.in_(batch_hashes))
+        )
+        existing_hashes.update(result.scalars().all())
+
+    # 2. Filter records to only those that are new
+    new_records = [r for r in records if r["hash"] not in existing_hashes]
+    if not new_records:
+        return 0
+
+    # 3. Insert new MMS records
+    count = await bulk_upsert(session, MMS, new_records)
     logger.info(f"Inserted {count} new MMS records (of {len(records)} total)")
 
-    # Insert parts for newly-inserted MMS records
+    # 4. Insert parts only for the newly inserted records
     if parts_map and count > 0:
-        parts_inserted = 0
-        for mms_hash, parts in parts_map:
-            if not parts:
-                continue
-            # Look up the MMS id by hash
+        new_hashes = [r["hash"] for r in new_records]
+        
+        # Fetch the IDs of the newly inserted MMS records
+        hash_to_id = {}
+        for i in range(0, len(new_hashes), 500):
+            batch_hashes = new_hashes[i : i + 500]
             result = await session.execute(
-                select(MMS.id).where(MMS.hash == mms_hash)
+                select(MMS.id, MMS.hash).where(MMS.hash.in_(batch_hashes))
             )
-            mms_id = result.scalar_one_or_none()
-            if mms_id is None:
-                continue  # was a duplicate, skip parts
+            for mms_id, mms_hash in result.all():
+                hash_to_id[mms_hash] = mms_id
+
+        # Prepare parts for bulk insert
+        parts_to_insert = []
+        for mms_hash, parts in parts_map:
+            if mms_hash not in hash_to_id or not parts:
+                continue
+            mms_id = hash_to_id[mms_hash]
             for part in parts:
-                part_record = MMSPart(
-                    mms_id=mms_id,
-                    seq=part.get("seq", 0),
-                    content_type=part.get("content_type", "application/octet-stream"),
-                    name=part.get("name"),
-                    text=part.get("text"),
-                    data=part.get("data"),
-                )
-                session.add(part_record)
-                parts_inserted += 1
-        await session.flush()
-        logger.info(f"Inserted {parts_inserted} MMS parts")
+                parts_to_insert.append({
+                    "mms_id": mms_id,
+                    "seq": part.get("seq", 0),
+                    "content_type": part.get("content_type", "application/octet-stream"),
+                    "name": part.get("name"),
+                    "text": part.get("text"),
+                    "data": part.get("data")
+                })
+
+        if parts_to_insert:
+            # Insert parts in batches
+            for i in range(0, len(parts_to_insert), 500):
+                batch_parts = parts_to_insert[i : i + 500]
+                await session.execute(sqlite_insert(MMSPart).values(batch_parts) if session.bind.dialect.name == "sqlite" else pg_insert(MMSPart).values(batch_parts))
+            
+            logger.info(f"Inserted {len(parts_to_insert)} MMS parts")
 
     return count
 
