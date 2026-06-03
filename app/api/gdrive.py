@@ -20,6 +20,9 @@ router = APIRouter(prefix="/api/gdrive", tags=["gdrive"])
 class FolderSettingsUpdate(BaseModel):
     folder_id: str
     sync_schedule: str = "manual"
+    notification_urls: str | None = None
+    notify_on_success: bool = False
+    notify_on_failure: bool = True
 
     @field_validator("sync_schedule")
     @classmethod
@@ -83,7 +86,7 @@ async def update_settings(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
-    """Save the selected Google Drive sync folder ID and sync schedule."""
+    """Save the selected Google Drive sync folder ID, sync schedule, and notification settings."""
     stmt = select(AppConfig).where(AppConfig.user_id == current_user.id)
     config = (await session.execute(stmt)).scalar_one_or_none()
 
@@ -93,8 +96,38 @@ async def update_settings(
 
     config.gdrive_sync_folder_id = update.folder_id
     config.sync_schedule = update.sync_schedule
+    config.notification_urls = update.notification_urls
+    config.notify_on_success = update.notify_on_success
+    config.notify_on_failure = update.notify_on_failure
     await session.commit()
     
     # The worker polls the DB every 60s and will pick up the new schedule automatically.
     
-    return {"status": "ok", "folder_id": config.gdrive_sync_folder_id, "sync_schedule": config.sync_schedule}
+    return {
+        "status": "ok", 
+        "folder_id": config.gdrive_sync_folder_id, 
+        "sync_schedule": config.sync_schedule,
+        "notification_urls": config.notification_urls,
+        "notify_on_success": config.notify_on_success,
+        "notify_on_failure": config.notify_on_failure
+    }
+
+class NotificationTest(BaseModel):
+    urls: str
+
+@router.post("/test-notification")
+async def test_notification(
+    payload: NotificationTest,
+    current_user: User = Depends(get_current_user)
+):
+    """Test notification URLs."""
+    from app.services.notifier import send_notification
+    success = await send_notification(
+        title="SMS Web Viewer: Test",
+        body="This is a test notification from your SMS Web Viewer instance.",
+        notification_urls=payload.urls
+    )
+    if success:
+        return {"status": "ok", "message": "Notification sent successfully"}
+    else:
+        raise HTTPException(status_code=400, detail="Failed to send notification. Check URLs.")

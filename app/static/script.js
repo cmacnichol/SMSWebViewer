@@ -772,6 +772,15 @@ settingsModalEl.addEventListener('show.bs.modal', async () => {
                 await loadDriveFolders(data.folder_id);
                 const schedSelect = document.getElementById('sync-schedule-select');
                 if (schedSelect) schedSelect.value = data.sync_schedule || "manual";
+                
+                const notifUrls = document.getElementById('notification-urls');
+                if (notifUrls) notifUrls.value = data.notification_urls || '';
+                
+                const notifSuccess = document.getElementById('notify-success');
+                if (notifSuccess) notifSuccess.checked = data.notify_on_success || false;
+                
+                const notifFailure = document.getElementById('notify-failure');
+                if (notifFailure) notifFailure.checked = data.notify_on_failure !== undefined ? data.notify_on_failure : true;
             } else {
                 gdriveStatusEl.innerHTML = '<span class="badge bg-warning text-dark">Not Connected</span>';
                 gdriveConnectContainer.classList.remove('d-none');
@@ -860,13 +869,23 @@ document.getElementById('btn-save-gdrive-settings')?.addEventListener('click', a
     const scheduleSelect = document.getElementById('sync-schedule-select');
     const sync_schedule = scheduleSelect ? scheduleSelect.value : "manual";
     
+    const notification_urls = document.getElementById('notification-urls')?.value || '';
+    const notify_on_success = document.getElementById('notify-success')?.checked || false;
+    const notify_on_failure = document.getElementById('notify-failure')?.checked || false;
+    
     if (!folder_id) return alert('Please select a folder');
     
     try {
         const res = await fetch(`${API_BASE}/gdrive/settings`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ folder_id, sync_schedule })
+            body: JSON.stringify({ 
+                folder_id, 
+                sync_schedule,
+                notification_urls,
+                notify_on_success,
+                notify_on_failure
+            })
         });
         if (res.ok) {
             alert('Settings saved!');
@@ -878,6 +897,32 @@ document.getElementById('btn-save-gdrive-settings')?.addEventListener('click', a
         }
     } catch (e) {
         alert('Failed to save settings: ' + e.message);
+    }
+});
+
+document.getElementById('btn-test-notification')?.addEventListener('click', async () => {
+    const urls = document.getElementById('notification-urls')?.value;
+    const resultDiv = document.getElementById('notification-test-result');
+    if (!urls) {
+        resultDiv.innerHTML = '<span class="text-danger">Please enter at least one URL first.</span>';
+        return;
+    }
+    
+    resultDiv.innerHTML = '<span class="text-muted">Sending test notification...</span>';
+    try {
+        const res = await fetch(`${API_BASE}/gdrive/test-notification`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ urls })
+        });
+        if (res.ok) {
+            resultDiv.innerHTML = '<span class="text-success"><i class="fas fa-check"></i> Notification sent!</span>';
+        } else {
+            const data = await res.json();
+            resultDiv.innerHTML = `<span class="text-danger"><i class="fas fa-times"></i> ${data.detail || 'Failed to send'}</span>`;
+        }
+    } catch (e) {
+        resultDiv.innerHTML = `<span class="text-danger"><i class="fas fa-times"></i> ${e.message}</span>`;
     }
 });
 

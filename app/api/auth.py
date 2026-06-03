@@ -101,4 +101,7 @@ async def status(session: AsyncSession = Depends(get_session), current_user: Use
         "connected": is_connected,
         "folder_id": config.gdrive_sync_folder_id if config else None,
         "sync_schedule": config.sync_schedule if config else "manual",
+        "notification_urls": config.notification_urls if config else None,
+        "notify_on_success": config.notify_on_success if config else False,
+        "notify_on_failure": config.notify_on_failure if config else True,
     }

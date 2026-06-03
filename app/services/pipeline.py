@@ -215,6 +215,15 @@ async def run_ingestion_pipeline(user_id: str) -> None:
 
         logger.info(f"Pipeline complete for {user_id}: {sms_count} SMS, {mms_count} MMS, {call_count} calls")
 
+        if config.notify_on_success and (sms_count > 0 or mms_count > 0 or call_count > 0):
+            from app.services.notifier import send_notification
+            import asyncio
+            asyncio.create_task(send_notification(
+                title="SMS Web Viewer Sync",
+                body=f"Successfully synced {sms_count} SMS, {mms_count} MMS, and {call_count} calls.",
+                notification_urls=config.notification_urls
+            ))
+
     except Exception as e:
         _last_sync[user_id].update({
             "status": "error",
@@ -225,6 +234,16 @@ async def run_ingestion_pipeline(user_id: str) -> None:
         await _update_db_status(user_id, "error", error=str(e))
         
         logger.exception(f"Ingestion pipeline failed for {user_id}: {e}")
+        
+        if 'config' in locals() and config and getattr(config, 'notify_on_failure', False):
+            from app.services.notifier import send_notification
+            import asyncio
+            asyncio.create_task(send_notification(
+                title="SMS Web Viewer Sync Failed",
+                body=f"Sync failed for user {user_id}:\n{str(e)}",
+                notification_urls=getattr(config, 'notification_urls', None)
+            ))
+            
         raise
     finally:
         if xml_path:

@@ -35,3 +35,8 @@ class AppConfig(Base):
     last_sync_time: Mapped[str | None] = mapped_column(default=None)
     last_sync_error: Mapped[str | None] = mapped_column(default=None)
     last_sync_stats: Mapped[str | None] = mapped_column(default=None)
+
+    # Notifications
+    notification_urls: Mapped[str | None] = mapped_column(default=None)
+    notify_on_success: Mapped[bool] = mapped_column(default=False)
+    notify_on_failure: Mapped[bool] = mapped_column(default=True)

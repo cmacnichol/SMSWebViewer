@@ -171,6 +171,15 @@ When running SMS Web Viewer in a production environment (like Docker Swarm), the
 5. Choose your Background Sync Schedule (e.g., Every hour, Daily at 2AM).
 6. Click **Save Settings** and then click **Sync Now** to run your first ingestion!
 
+## Notifications
+
+You can configure the application to send notifications whenever a background sync succeeds or fails. SMS Web Viewer utilizes the [Apprise](https://github.com/caronc/apprise) library, which supports almost 100 different notification services including Discord, Telegram, Pushover, Slack, and more.
+
+1. Open the **Settings** modal in the UI.
+2. Enter your Apprise URL(s) in the **Notifications** section (e.g., `discord://webhook_id/webhook_token`). Multiple URLs can be separated by commas.
+3. Toggle whether you want alerts on Sync Success, Sync Failure, or both.
+4. Click **Test Notification** to verify your configuration.
+
 ## Testing the MCP Server
 
 This application includes a built-in Model Context Protocol (MCP) server.

@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-06-03
+
+### Added
+- **Multi-Provider Notifications:** Integrated the Apprise framework to deliver robust background notifications whenever a Google Drive sync succeeds or fails. Supports Discord, Telegram, Pushover, Slack, and almost 100 other services.
+- **Notification Settings UI:** Added a new Notifications configuration pane in the Settings modal, allowing users to define their webhook URLs, toggle success/failure alerts, and send live test notifications directly from the browser.
+
 ## [1.2.2] - 2026-06-01
 
 ### Added
