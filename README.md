@@ -50,7 +50,7 @@ Then run `docker-compose up -d`.
 - **Automated Sync Pipeline** - In-process scheduler automatically pulls the latest XML backups directly from your Google Drive. Schedule it daily, hourly, or run it manually.
 - **Dynamic OAuth Integration** - Securely connect your Google account via a standard OAuth2 flow right from the UI.
 - **Fast, Deduplicated Ingestion** - Uses a normalized SQLite database to deduplicate messages and calls based on content hashes. Works seamlessly with multi-GB backups.
-- **Global Full-Text Search** - Instantly search for keywords across all your contacts and conversations simultaneously.
+- **Global Full-Text Search** - Instantly search for keywords across all your contacts and conversations simultaneously. Clicking any search result instantly jumps you directly to its original context in the chat thread.
 - **Manual XML Imports** - Easily upload XML files directly from the web interface if you don't want to use Google Drive sync.
 - **Export Capabilities** - Export conversations to CSV, JSON, or beautifully formatted PDFs.
 - **Multi-User Management** - Support for multiple users with configurable permission levels, role-based access control, and password authentication (can be disabled via `AUTH_MODE=NONE`).

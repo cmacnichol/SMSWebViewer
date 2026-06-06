@@ -121,7 +121,10 @@ function renderGlobalSearchResults(messages, query) {
     messages.forEach(msg => {
         const d = new Date(msg.date_ms);
         const dateStr = msg.readable_date || d.toLocaleString();
-        const contactName = msg.contact_name || msg.normalized_address || "Unknown";
+        
+        const displayContact = msg.contact_name 
+            ? `${escapeHtml(msg.contact_name)} <small class="text-muted fw-normal ms-1">(${escapeHtml(msg.normalized_address)})</small>` 
+            : escapeHtml(msg.normalized_address);
         
         let bodyHtml = escapeHtml(msg.body || '');
         if (query) {
@@ -134,10 +137,10 @@ function renderGlobalSearchResults(messages, query) {
         const icon = isIncoming ? '<i class="fas fa-arrow-down text-success"></i> Received' : '<i class="fas fa-arrow-up text-primary"></i> Sent';
         
         html += `
-            <div class="card mb-2 border shadow-sm" style="cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'" onclick="loadGlobalResult('${msg.normalized_address}')">
+            <div class="card mb-2 border shadow-sm" style="cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'" onclick="loadGlobalResult('${msg.normalized_address}', ${msg.id})">
                 <div class="card-body p-3">
                     <div class="d-flex justify-content-between mb-1">
-                        <strong><i class="fas fa-user-circle text-muted me-1"></i> ${escapeHtml(contactName)}</strong>
+                        <strong><i class="fas fa-user-circle text-muted me-1"></i> ${displayContact}</strong>
                         <small class="text-muted">${dateStr}</small>
                     </div>
                     <div class="small text-muted mb-2">${icon}</div>
@@ -152,18 +155,13 @@ function renderGlobalSearchResults(messages, query) {
     chatWindow.innerHTML = html;
 }
 
-window.loadGlobalResult = async function(normalized_address) {
+window.loadGlobalResult = async function(normalized_address, targetMsgId = null) {
     globalSearchEl.value = '';
     const item = document.querySelector(`[data-number="${normalized_address}"]`);
-    if (item) {
+    if (item && !targetMsgId) {
         item.click();
     } else {
-        currentContact = { normalized_address };
-        await loadMessages(normalized_address);
-        await loadCalls(normalized_address);
-        if (window.innerWidth <= 768) {
-            document.body.classList.add('mobile-chat-active');
-        }
+        await selectContact(normalized_address, targetMsgId);
     }
 };
 
@@ -240,6 +238,7 @@ function renderMessages(messages, append = false) {
 
         const isIncoming = msg.type === 1;
         const row = document.createElement('div');
+        row.id = `msg-${msg.id}`;
         row.className = `message-row ${isIncoming ? 'incoming' : 'outgoing'}`;
 
         let clusterCls = '';
@@ -452,7 +451,7 @@ function updateSyncStatus(data) {
 }
 
 // ---- Actions ----
-async function selectContact(normalizedAddress) {
+async function selectContact(normalizedAddress, targetMsgId = null) {
     currentContact = normalizedAddress;
     // Re-render contacts to update active state
     renderContacts(contactsData);
@@ -485,7 +484,52 @@ async function selectContact(normalizedAddress) {
         searchStartDate.value = '';
         searchEndDate.value = '';
         
-        renderMessages(currentMessagesToRender);
+        if (targetMsgId) {
+            const targetIndex = currentMessagesToRender.findIndex(m => m.id === targetMsgId);
+            if (targetIndex !== -1) {
+                // Ensure we render enough messages from the bottom to reach the target message
+                // (e.g. target is index 500 out of 1000 messages)
+                // We add a context buffer of 25 messages so it isn't at the very top.
+                const neededCount = currentMessagesToRender.length - targetIndex + 25;
+                renderedCount = Math.min(neededCount, currentMessagesToRender.length);
+                
+                // Clear the chat window first
+                chatWindow.innerHTML = '';
+                // Trick renderMessages by setting renderedCount back and calling it
+                const actualRendered = renderedCount;
+                renderedCount = 0; 
+                // We temporally increase CHUNK_SIZE or just let renderMessages do it in one pass?
+                // Wait, renderMessages only renders CHUNK_SIZE messages.
+                // We should loop renderMessages until renderedCount reaches actualRendered
+                while (renderedCount < actualRendered) {
+                    // Temporarily increase chunk size to avoid many reflows
+                    const origChunk = CHUNK_SIZE;
+                    window.CHUNK_SIZE = actualRendered;
+                    renderMessages(currentMessagesToRender, true);
+                    window.CHUNK_SIZE = origChunk;
+                    // Our while loop will exit since CHUNK_SIZE was large enough
+                    break; 
+                }
+                
+                // Scroll to target
+                setTimeout(() => {
+                    const el = document.getElementById(`msg-${targetMsgId}`);
+                    if (el) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        const bubble = el.querySelector('.message-bubble');
+                        if (bubble) {
+                            bubble.classList.add('highlight-pulse');
+                            setTimeout(() => bubble.classList.remove('highlight-pulse'), 3000);
+                        }
+                    }
+                }, 100);
+            } else {
+                renderMessages(currentMessagesToRender);
+            }
+        } else {
+            renderMessages(currentMessagesToRender);
+        }
+        
     } catch (e) {
         console.error(e);
         chatWindow.innerHTML = '<div class="empty-state"><p>Failed to load messages</p></div>';

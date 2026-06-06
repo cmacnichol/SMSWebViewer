@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2026-06-06
+
+### Changed
+- **Global Search UI & Context Navigation:** The global search results now display the phone number next to contact names for better clarity with unsaved numbers. Clicking on a search result now intelligently jumps the chat window directly to that specific message in the conversation thread and highlights it, providing instant context.
+
 ## [1.3.0] - 2026-06-03
 
 ### Added
