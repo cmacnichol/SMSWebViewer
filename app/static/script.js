@@ -137,7 +137,7 @@ function renderGlobalSearchResults(messages, query) {
         const icon = isIncoming ? '<i class="fas fa-arrow-down text-success"></i> Received' : '<i class="fas fa-arrow-up text-primary"></i> Sent';
         
         html += `
-            <div class="card mb-2 border shadow-sm" style="cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'" onclick="loadGlobalResult('${msg.normalized_address}', ${msg.id})">
+            <div class="card mb-2 border shadow-sm" style="cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'" onclick="loadGlobalResult('${msg.normalized_address}', '${msg.source}-${msg.id}')">
                 <div class="card-body p-3">
                     <div class="d-flex justify-content-between mb-1">
                         <strong><i class="fas fa-user-circle text-muted me-1"></i> ${displayContact}</strong>
@@ -238,7 +238,7 @@ function renderMessages(messages, append = false) {
 
         const isIncoming = msg.type === 1;
         const row = document.createElement('div');
-        row.id = `msg-${msg.id}`;
+        row.id = `msg-${msg.source}-${msg.id}`;
         row.className = `message-row ${isIncoming ? 'incoming' : 'outgoing'}`;
 
         let clusterCls = '';
@@ -485,7 +485,7 @@ async function selectContact(normalizedAddress, targetMsgId = null) {
         searchEndDate.value = '';
         
         if (targetMsgId) {
-            const targetIndex = currentMessagesToRender.findIndex(m => m.id === targetMsgId);
+            const targetIndex = currentMessagesToRender.findIndex(m => `${m.source}-${m.id}` === targetMsgId);
             if (targetIndex !== -1) {
                 // Ensure we render enough messages from the bottom to reach the target message
                 // (e.g. target is index 500 out of 1000 messages)
