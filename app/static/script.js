@@ -191,7 +191,7 @@ function renderContacts(contacts) {
     });
 }
 
-function renderMessages(messages, append = false) {
+function renderMessages(messages, append = false, forceChunkSize = null) {
     if (!append) {
         chatWindow.innerHTML = '';
         renderedCount = 0;
@@ -209,7 +209,8 @@ function renderMessages(messages, append = false) {
     const endIdx = messages.length - renderedCount;
     if (endIdx <= 0) return; // All rendered
     
-    const startIdx = Math.max(0, endIdx - CHUNK_SIZE);
+    const currentChunkSize = forceChunkSize || CHUNK_SIZE;
+    const startIdx = Math.max(0, endIdx - currentChunkSize);
     const chunk = messages.slice(startIdx, endIdx);
     
     const fragment = document.createDocumentFragment();
@@ -498,18 +499,7 @@ async function selectContact(normalizedAddress, targetMsgId = null) {
                 // Trick renderMessages by setting renderedCount back and calling it
                 const actualRendered = renderedCount;
                 renderedCount = 0; 
-                // We temporally increase CHUNK_SIZE or just let renderMessages do it in one pass?
-                // Wait, renderMessages only renders CHUNK_SIZE messages.
-                // We should loop renderMessages until renderedCount reaches actualRendered
-                while (renderedCount < actualRendered) {
-                    // Temporarily increase chunk size to avoid many reflows
-                    const origChunk = CHUNK_SIZE;
-                    window.CHUNK_SIZE = actualRendered;
-                    renderMessages(currentMessagesToRender, true);
-                    window.CHUNK_SIZE = origChunk;
-                    // Our while loop will exit since CHUNK_SIZE was large enough
-                    break; 
-                }
+                renderMessages(currentMessagesToRender, true, actualRendered);
                 
                 // Scroll to target
                 setTimeout(() => {
@@ -521,6 +511,8 @@ async function selectContact(normalizedAddress, targetMsgId = null) {
                             bubble.classList.add('highlight-pulse');
                             setTimeout(() => bubble.classList.remove('highlight-pulse'), 3000);
                         }
+                    } else {
+                        console.debug(`[GlobalSearch Jump] Element msg-${targetMsgId} not found in DOM!`);
                     }
                 }, 100);
             } else {

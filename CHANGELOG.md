@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.3] - 2026-06-06
+
+### Added
+- **Configurable Log Levels:** Added backend support for the `LOG_LEVEL` environment variable. You can now set `LOG_LEVEL=DEBUG` in your Docker configuration for verbose backend logging.
+
+### Fixed
+- **Global Search Deep-Linking Bug:** Fixed a Javascript variable scoping bug that prevented the chat window from rendering enough historical messages to reach deep search results, causing the scroll-to-message feature to fail silently on older messages.
+- **Frontend Debugging:** Added frontend `console.debug` statements to track search-jump failures.
+
 ## [1.3.2] - 2026-06-06
 
 ### Fixed
