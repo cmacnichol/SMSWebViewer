@@ -1,4 +1,5 @@
-# SMS Web Viewer
+# <img src="logo.png" width="60" height="60" align="left" style="margin-right: 10px;" alt="Logo"> SMS Web Viewer
+<br clear="left"/>
 
 A modern, self-hosted web application that acts as a robust backend data pipeline and frontend interface for your [SMS Backup & Restore](https://play.google.com/store/apps/details?id=com.riteshsahu.SMSBackupRestore) XML files. It synchronizes with your Google Drive (or accepts manual uploads), parses your backups, and presents them in a beautiful, searchable, chat-like UI.
 
@@ -89,6 +90,8 @@ Because this is a self-hosted application, you need to create your own Google OA
    - Choose **External** or **Internal** and click **Create**.
    - Fill in the required fields. On the **Scopes** page, manually add `https://www.googleapis.com/auth/drive.readonly`.
    - Add your Google email address as a **Test User**.
+   - **IMPORTANT NOTE:** If you leave your Consent Screen Publishing Status as "Testing", Google will force your authentication token to expire every 7 days. To prevent having to re-authenticate weekly, click the **PUBLISH APP** button to move the status to "In production". 
+   - **Bypassing Verification:** When you click Publish, Google will show a warning stating that "Verification is required" because you are requesting sensitive scopes. Simply click **Confirm** on the pop-up to push it to production. A new button will appear asking you to "Prepare for Verification", but **you can completely ignore this button**. Since this is a self-hosted app for your own personal use, you do *not* need to verify it. By leaving it in "Production" but "Unverified", the 7-day expiration is lifted permanently!
 
 4. **Create OAuth Credentials:**
    - Navigate to **APIs & Services > Credentials**.

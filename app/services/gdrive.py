@@ -41,13 +41,35 @@ async def get_credentials(session: AsyncSession, user_id: str) -> Credentials:
 
     if not creds.valid:
         logger.info(f"Refreshing Google Drive access token for user {user_id}...")
-        creds.refresh(Request())
-        config.gdrive_access_token = creds.token
-        if creds.expiry:
-            config.gdrive_token_expiry = creds.expiry.replace(
-                tzinfo=timezone.utc
-            ).timestamp()
-        await session.commit()
+        try:
+            creds.refresh(Request())
+            config.gdrive_access_token = creds.token
+            if creds.expiry:
+                config.gdrive_token_expiry = creds.expiry.replace(
+                    tzinfo=timezone.utc
+                ).timestamp()
+            await session.commit()
+        except Exception as e:
+            from google.auth.exceptions import RefreshError
+            if isinstance(e, RefreshError):
+                logger.error(f"Google Drive token expired or revoked for user {user_id}: {e}")
+                # Clear tokens so the UI sees it as disconnected
+                config.gdrive_refresh_token = None
+                config.gdrive_access_token = None
+                await session.commit()
+                
+                # Send notification if configured
+                if getattr(config, 'notify_on_failure', False) and getattr(config, 'notification_urls', None):
+                    from app.services.notifier import send_notification
+                    import asyncio
+                    asyncio.create_task(send_notification(
+                        title="SMS Web Viewer - Action Required",
+                        body="Your Google Drive authentication token has expired. Please log in to the web interface and re-authenticate.",
+                        notification_urls=config.notification_urls
+                    ))
+                raise ValueError("Google Drive authentication token expired. Please re-authenticate.")
+            else:
+                raise
 
     return creds
 

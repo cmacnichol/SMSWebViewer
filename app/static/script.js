@@ -803,7 +803,9 @@ settingsModalEl.addEventListener('show.bs.modal', async () => {
 
             if (data.connected) {
                 gdriveStatusEl.innerHTML = '<span class="badge bg-success">Connected</span>';
-                gdriveConnectContainer.classList.add('d-none');
+                gdriveConnectContainer.classList.remove('d-none');
+                document.getElementById('btn-connect-gdrive').innerHTML = '<i class="fab fa-google"></i> Re-authenticate';
+                document.getElementById('btn-disconnect-gdrive').classList.remove('d-none');
                 gdriveSettingsContainer.classList.remove('d-none');
                 await loadDriveFolders(data.folder_id);
                 const schedSelect = document.getElementById('sync-schedule-select');
@@ -820,6 +822,8 @@ settingsModalEl.addEventListener('show.bs.modal', async () => {
             } else {
                 gdriveStatusEl.innerHTML = '<span class="badge bg-warning text-dark">Not Connected</span>';
                 gdriveConnectContainer.classList.remove('d-none');
+                document.getElementById('btn-connect-gdrive').innerHTML = '<i class="fab fa-google"></i> Connect Google Drive';
+                document.getElementById('btn-disconnect-gdrive').classList.add('d-none');
                 gdriveSettingsContainer.classList.add('d-none');
             }
         }
@@ -867,6 +871,20 @@ document.getElementById('btn-connect-gdrive')?.addEventListener('click', async (
         if (data.url) window.location.href = data.url;
     } catch (e) {
         alert('Failed to initiate login: ' + e.message);
+    }
+});
+
+document.getElementById('btn-disconnect-gdrive')?.addEventListener('click', async () => {
+    if (!confirm('Are you sure you want to disconnect Google Drive? This will clear your authentication tokens.')) return;
+    try {
+        const res = await fetch(`${API_BASE}/auth/disconnect`, { method: 'POST' });
+        if (res.ok) {
+            settingsModalEl.dispatchEvent(new Event('show.bs.modal'));
+        } else {
+            alert('Failed to disconnect Google Drive');
+        }
+    } catch (e) {
+        alert('Error: ' + e.message);
     }
 });
 

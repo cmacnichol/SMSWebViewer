@@ -105,3 +105,17 @@ async def status(session: AsyncSession = Depends(get_session), current_user: Use
         "notify_on_success": config.notify_on_success if config else False,
         "notify_on_failure": config.notify_on_failure if config else True,
     }
+
+@router.post("/disconnect")
+async def disconnect(session: AsyncSession = Depends(get_session), current_user: User = Depends(get_current_user)):
+    """Disconnect Google Drive by clearing the OAuth tokens."""
+    stmt = select(AppConfig).where(AppConfig.user_id == current_user.id)
+    config = (await session.execute(stmt)).scalar_one_or_none()
+    
+    if config:
+        config.gdrive_refresh_token = None
+        config.gdrive_access_token = None
+        config.gdrive_token_expiry = None
+        await session.commit()
+    
+    return {"status": "success"}

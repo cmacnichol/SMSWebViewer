@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.4] - 2026-06-08
+
+### Added
+- **OAuth Re-Authentication**: Added a manual "Disconnect" button to the UI to sever Google Drive links.
+- **Expiration Handling**: Background sync now gracefully handles expired or revoked Google OAuth tokens. It automatically clears the tokens from the database, halts the sync without crashing, and sends an Apprise notification alert to re-authenticate.
+- **Custom OAuth Logo**: Generated and included a custom 120x120 app logo for the Google Cloud Consent screen.
+- **GitHub Link**: Added a subtle link to the GitHub repository in the application footer.
+
+### Changed
+- **Responsive Toolbars**: Re-engineered the application header, sync status bar, and chat toolbars to wrap gracefully on smaller mobile screens.
+
+### Fixed
+- **Documentation**: Expanded the `README.md` to explicitly detail how to bypass the "Verification Required" warning when publishing the OAuth Consent Screen to permanently prevent 7-day token expirations.
+
 ## [1.3.3] - 2026-06-06
 
 ### Added
