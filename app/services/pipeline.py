@@ -92,7 +92,7 @@ async def ingest_sms_mms_file(xml_path: Path, user_id: str) -> tuple[int, int]:
     """Ingest a local SMS/MMS XML file and return (sms_count, mms_count)."""
     settings = get_settings()
     country = settings.DEFAULT_COUNTRY_CODE
-    sms_raw, mms_raw = parse_sms_mms_xml(xml_path)
+    sms_raw, mms_raw = await asyncio.to_thread(parse_sms_mms_xml, xml_path)
 
     # Normalize + hash SMS
     sms_records = []
@@ -123,7 +123,7 @@ async def ingest_calls_file(xml_path: Path, user_id: str) -> int:
     """Ingest a local Calls XML file and return call_count."""
     settings = get_settings()
     country = settings.DEFAULT_COUNTRY_CODE
-    calls_raw = parse_calls_xml(xml_path)
+    calls_raw = await asyncio.to_thread(parse_calls_xml, xml_path)
 
     call_records = []
     for r in calls_raw:
