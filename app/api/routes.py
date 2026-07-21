@@ -1,6 +1,7 @@
 """FastAPI REST API routes for the SMS Web Viewer."""
 
 import asyncio
+import aiofiles
 import csv
 import io
 import json
@@ -503,7 +504,7 @@ async def upload_xml(
     chunk_size = 1024 * 1024  # 1 MB chunks
 
     try:
-        with temp_path.open("wb") as buffer:
+        async with aiofiles.open(temp_path, "wb") as buffer:
             while True:
                 chunk = await file.read(chunk_size)
                 if not chunk:
@@ -514,7 +515,7 @@ async def upload_xml(
                         status_code=413,
                         detail=f"File too large. Maximum upload size is {MAX_UPLOAD_BYTES // (1024**3)} GB."
                     )
-                buffer.write(chunk)
+                await buffer.write(chunk)
 
         from app.services.pipeline import ingest_sms_mms_file, ingest_calls_file
         if file_type == "calls":
