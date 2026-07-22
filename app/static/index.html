@@ -1,554 +1,870 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SMS Web Viewer</title>
-    <meta name="description" content="Web-based viewer for SMS Backup & Restore XML files">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
+    <meta
+      name="description"
+      content="Web-based viewer for SMS Backup & Restore XML files"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+    />
     <script defer src="script.js?v=1.1"></script>
     <style>
-        :root {
-            --bg-primary: #f8f9fa;
-            --bg-secondary: #ffffff;
-            --bg-chat: #f0f2f5;
-            --text-primary: #212529;
-            --text-secondary: #6c757d;
-            --border-color: #dee2e6;
-            --incoming-bg: #ffffff;
-            --outgoing-bg: #dcf8c6;
-            --accent: #0d6efd;
-            --accent-light: #e7f1ff;
-        }
+      :root {
+        --bg-primary: #f8f9fa;
+        --bg-secondary: #ffffff;
+        --bg-chat: #f0f2f5;
+        --text-primary: #212529;
+        --text-secondary: #6c757d;
+        --border-color: #dee2e6;
+        --incoming-bg: #ffffff;
+        --outgoing-bg: #dcf8c6;
+        --accent: #0d6efd;
+        --accent-light: #e7f1ff;
+      }
 
-        * { font-family: 'Inter', sans-serif; }
+      * {
+        font-family: "Inter", sans-serif;
+      }
 
-        body {
-            background-color: var(--bg-primary);
-            color: var(--text-primary);
-            transition: background-color 0.3s ease, color 0.3s ease;
-        }
+      body {
+        background-color: var(--bg-primary);
+        color: var(--text-primary);
+        transition:
+          background-color 0.3s ease,
+          color 0.3s ease;
+      }
 
-        /* Header */
-        .app-header {
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.9) 0%, rgba(118, 75, 162, 0.9) 100%);
-            backdrop-filter: blur(10px);
-            color: white;
-            padding: 1rem 1.5rem;
-            border-radius: 12px;
-            margin-bottom: 1rem;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-            position: relative;
-            z-index: 1050;
-        }
+      /* Header */
+      .app-header {
+        background: linear-gradient(
+          135deg,
+          rgba(102, 126, 234, 0.9) 0%,
+          rgba(118, 75, 162, 0.9) 100%
+        );
+        backdrop-filter: blur(10px);
+        color: white;
+        padding: 1rem 1.5rem;
+        border-radius: 12px;
+        margin-bottom: 1rem;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        position: relative;
+        z-index: 1050;
+      }
 
-        .app-header h1 {
-            font-weight: 700;
-            font-size: 1.5rem;
-            margin: 0;
-        }
+      .app-header h1 {
+        font-weight: 700;
+        font-size: 1.5rem;
+        margin: 0;
+      }
 
-        /* Sync status bar */
-        #sync-bar {
-            background-color: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(10px);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 0.5rem 1rem;
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 10px;
-            font-size: 0.85rem;
-            transition: background-color 0.3s ease;
-        }
+      /* Sync status bar */
+      #sync-bar {
+        background-color: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(10px);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 10px;
+        font-size: 0.85rem;
+        transition: background-color 0.3s ease;
+      }
 
-        #sync-bar .sync-status {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
+      #sync-bar .sync-status {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
 
-        #sync-bar .sync-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background-color: #28a745;
-            display: inline-block;
-        }
+      #sync-bar .sync-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background-color: #28a745;
+        display: inline-block;
+      }
 
-        #sync-bar .sync-dot.error { background-color: #dc3545; }
-        #sync-bar .sync-dot.running {
-            background-color: #ffc107;
-            animation: pulse 1s infinite;
-        }
-        #sync-bar .sync-dot.never { background-color: #6c757d; }
+      #sync-bar .sync-dot.error {
+        background-color: #dc3545;
+      }
+      #sync-bar .sync-dot.running {
+        background-color: #ffc107;
+        animation: pulse 1s infinite;
+      }
+      #sync-bar .sync-dot.never {
+        background-color: #6c757d;
+      }
 
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.4; }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
         }
+        50% {
+          opacity: 0.4;
+        }
+      }
 
-        /* Contact list */
-        #contact-list {
-            max-height: calc(100vh - 280px);
-            overflow-y: auto;
-            background-color: var(--bg-secondary);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            transition: background-color 0.3s ease;
-        }
+      /* Contact list */
+      #contact-list {
+        max-height: calc(100vh - 280px);
+        overflow-y: auto;
+        background-color: var(--bg-secondary);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        transition: background-color 0.3s ease;
+      }
 
-        #contact-list .list-group-item {
-            border: none;
-            border-bottom: 1px solid var(--border-color);
-            cursor: pointer;
-            padding: 0.75rem 1rem;
-            transition: background-color 0.2s ease, transform 0.2s ease;
-        }
+      #contact-list .list-group-item {
+        border: none;
+        border-bottom: 1px solid var(--border-color);
+        cursor: pointer;
+        padding: 0.75rem 1rem;
+        transition:
+          background-color 0.2s ease,
+          transform 0.2s ease;
+      }
 
-        #contact-list .list-group-item:hover {
-            background-color: var(--accent-light);
-            transform: translateY(-2px);
-        }
+      #contact-list .list-group-item:hover {
+        background-color: var(--accent-light);
+        transform: translateY(-2px);
+      }
 
-        #contact-list .list-group-item.active {
-            background-color: var(--accent);
-            border-color: var(--accent);
-            color: white;
-        }
+      #contact-list .list-group-item.active {
+        background-color: var(--accent);
+        border-color: var(--accent);
+        color: white;
+      }
 
-        .contact-name { font-weight: 500; font-size: 0.9rem; }
-        .contact-number { font-size: 0.75rem; color: var(--text-secondary); }
-        
-        /* Make number readable when selected */
-        #contact-list .list-group-item.active .contact-number {
-            color: rgba(255, 255, 255, 0.85);
-        }
-        .contact-count {
-            font-size: 0.7rem;
-            background: var(--accent);
-            color: white;
-            border-radius: 12px;
-            padding: 2px 8px;
-        }
+      .contact-name {
+        font-weight: 500;
+        font-size: 0.9rem;
+      }
+      .contact-number {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+      }
 
-        /* Chat window */
-        #chat-window {
-            max-height: calc(100vh - 310px);
-            overflow-y: auto;
-            padding: 1rem;
-            background-color: var(--bg-chat);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            transition: background-color 0.3s ease;
-        }
+      /* Make number readable when selected */
+      #contact-list .list-group-item.active .contact-number {
+        color: rgba(255, 255, 255, 0.85);
+      }
+      .contact-count {
+        font-size: 0.7rem;
+        background: var(--accent);
+        color: white;
+        border-radius: 12px;
+        padding: 2px 8px;
+      }
 
-        @keyframes slideUpFade {
-            0% { opacity: 0; transform: translateY(10px); }
-            100% { opacity: 1; transform: translateY(0); }
-        }
+      /* Chat window */
+      #chat-window {
+        max-height: calc(100vh - 310px);
+        overflow-y: auto;
+        padding: 1rem;
+        background-color: var(--bg-chat);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        transition: background-color 0.3s ease;
+      }
 
-        .message-row { display: flex; margin-bottom: 0.5rem; animation: slideUpFade 0.3s ease forwards; }
-        .message-row.incoming { justify-content: flex-start; }
-        .message-row.outgoing { justify-content: flex-end; }
-        .message-row.clustered { margin-bottom: 2px; margin-top: -4px; }
+      @keyframes slideUpFade {
+        0% {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        100% {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
 
-        .message-bubble {
-            max-width: 75%;
-            padding: 0.5rem 0.75rem;
-            border-radius: 16px;
-            font-size: 0.9rem;
-            line-height: 1.4;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-            word-wrap: break-word;
-        }
+      .message-row {
+        display: flex;
+        margin-bottom: 0.5rem;
+        animation: slideUpFade 0.3s ease forwards;
+      }
+      .message-row.incoming {
+        justify-content: flex-start;
+      }
+      .message-row.outgoing {
+        justify-content: flex-end;
+      }
+      .message-row.clustered {
+        margin-bottom: 2px;
+        margin-top: -4px;
+      }
 
-        .message-bubble.incoming {
-            background-color: var(--incoming-bg);
-            border-bottom-left-radius: 4px;
-        }
-        .message-bubble.incoming.cluster-top { border-bottom-left-radius: 16px; }
-        .message-bubble.incoming.cluster-middle { border-bottom-left-radius: 16px; border-top-left-radius: 16px; }
-        .message-bubble.incoming.cluster-bottom { border-top-left-radius: 16px; }
+      .message-bubble {
+        max-width: 75%;
+        padding: 0.5rem 0.75rem;
+        border-radius: 16px;
+        font-size: 0.9rem;
+        line-height: 1.4;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        word-wrap: break-word;
+      }
 
-        .message-bubble.outgoing {
-            background-color: var(--outgoing-bg);
-            border-bottom-right-radius: 4px;
-        }
-        .message-bubble.outgoing.cluster-top { border-bottom-right-radius: 16px; }
-        .message-bubble.outgoing.cluster-middle { border-bottom-right-radius: 16px; border-top-right-radius: 16px; }
-        .message-bubble.outgoing.cluster-bottom { border-top-right-radius: 16px; }
+      .message-bubble.incoming {
+        background-color: var(--incoming-bg);
+        border-bottom-left-radius: 4px;
+      }
+      .message-bubble.incoming.cluster-top {
+        border-bottom-left-radius: 16px;
+      }
+      .message-bubble.incoming.cluster-middle {
+        border-bottom-left-radius: 16px;
+        border-top-left-radius: 16px;
+      }
+      .message-bubble.incoming.cluster-bottom {
+        border-top-left-radius: 16px;
+      }
 
-        .message-time {
-            font-size: 0.7rem;
-            color: var(--text-secondary);
-            margin-top: 2px;
-            opacity: 0.8;
-        }
+      .message-bubble.outgoing {
+        background-color: var(--outgoing-bg);
+        border-bottom-right-radius: 4px;
+      }
+      .message-bubble.outgoing.cluster-top {
+        border-bottom-right-radius: 16px;
+      }
+      .message-bubble.outgoing.cluster-middle {
+        border-bottom-right-radius: 16px;
+        border-top-right-radius: 16px;
+      }
+      .message-bubble.outgoing.cluster-bottom {
+        border-top-right-radius: 16px;
+      }
 
-        .message-media {
-            margin-top: 4px;
-        }
+      .message-time {
+        font-size: 0.7rem;
+        color: var(--text-secondary);
+        margin-top: 2px;
+        opacity: 0.8;
+      }
 
-        .message-media img {
-            max-width: 250px;
-            border-radius: 8px;
-            transition: transform 0.2s ease;
-        }
-        .message-media img:hover {
-            transform: scale(1.02);
-            cursor: pointer;
-        }
+      .message-media {
+        margin-top: 4px;
+      }
 
-        .date-divider {
-            text-align: center;
-            margin: 1rem 0;
-            position: sticky;
-            top: 10px;
-            z-index: 5;
-        }
-        .date-divider span {
-            background: rgba(0,0,0,0.1);
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 0.75rem;
-            backdrop-filter: blur(5px);
-        }
-        mark { background-color: #ffeb3b; color: #000; padding: 0 2px; border-radius: 2px; }
+      .message-media img {
+        max-width: 250px;
+        border-radius: 8px;
+        transition: transform 0.2s ease;
+      }
+      .message-media img:hover {
+        transform: scale(1.02);
+        cursor: pointer;
+      }
 
-        /* Calls tab */
-        .call-item {
-            display: flex;
-            align-items: center;
-            padding: 0.5rem 0;
-            border-bottom: 1px solid var(--border-color);
-        }
+      .date-divider {
+        text-align: center;
+        margin: 1rem 0;
+        position: sticky;
+        top: 10px;
+        z-index: 5;
+      }
+      .date-divider span {
+        background: rgba(0, 0, 0, 0.1);
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        backdrop-filter: blur(5px);
+      }
+      mark {
+        background-color: #ffeb3b;
+        color: #000;
+        padding: 0 2px;
+        border-radius: 2px;
+      }
 
-        .call-icon {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-right: 0.75rem;
-            font-size: 0.8rem;
-        }
+      /* Calls tab */
+      .call-item {
+        display: flex;
+        align-items: center;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid var(--border-color);
+      }
 
-        .call-icon.incoming { background: #d4edda; color: #28a745; }
-        .call-icon.outgoing { background: #cce5ff; color: #0d6efd; }
-        .call-icon.missed { background: #f8d7da; color: #dc3545; }
+      .call-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 0.75rem;
+        font-size: 0.8rem;
+      }
 
-        /* Tabs */
-        .nav-tabs .nav-link {
-            font-size: 0.85rem;
-            font-weight: 500;
-            color: var(--text-secondary);
-        }
+      .call-icon.incoming {
+        background: #d4edda;
+        color: #28a745;
+      }
+      .call-icon.outgoing {
+        background: #cce5ff;
+        color: #0d6efd;
+      }
+      .call-icon.missed {
+        background: #f8d7da;
+        color: #dc3545;
+      }
 
-        .nav-tabs .nav-link.active {
-            color: var(--accent);
-            font-weight: 600;
-        }
+      /* Tabs */
+      .nav-tabs .nav-link {
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: var(--text-secondary);
+      }
 
-        /* Search */
-        .search-bar-collapsed {
-            max-height: 0;
-            overflow: hidden;
-            opacity: 0;
-            transition: max-height 0.3s ease, opacity 0.2s ease;
-        }
+      .nav-tabs .nav-link.active {
+        color: var(--accent);
+        font-weight: 600;
+      }
 
-        .search-bar-expanded {
-            max-height: 60px;
-            opacity: 1;
-            overflow: visible;
-            transition: max-height 0.3s ease, opacity 0.2s ease;
-        }
+      /* Search */
+      .search-bar-collapsed {
+        max-height: 0;
+        overflow: hidden;
+        opacity: 0;
+        transition:
+          max-height 0.3s ease,
+          opacity 0.2s ease;
+      }
 
-        /* Dropdown */
-        .dropdown-menu { min-width: 150px; }
+      .search-bar-expanded {
+        max-height: 60px;
+        opacity: 1;
+        overflow: visible;
+        transition:
+          max-height 0.3s ease,
+          opacity 0.2s ease;
+      }
 
-        /* Loading spinner */
-        .spinner-overlay {
-            display: none;
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(255,255,255,0.8);
-            z-index: 10;
-            align-items: center;
-            justify-content: center;
-        }
+      /* Dropdown */
+      .dropdown-menu {
+        min-width: 150px;
+      }
 
-        .spinner-overlay.active { display: flex; }
+      /* Loading spinner */
+      .spinner-overlay {
+        display: none;
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.8);
+        z-index: 10;
+        align-items: center;
+        justify-content: center;
+      }
 
-        /* Scrollbar styling */
-        #contact-list::-webkit-scrollbar,
-        #chat-window::-webkit-scrollbar {
-            width: 6px;
-        }
+      .spinner-overlay.active {
+        display: flex;
+      }
 
-        #contact-list::-webkit-scrollbar-thumb,
-        #chat-window::-webkit-scrollbar-thumb {
-            background-color: #ccc;
-            border-radius: 3px;
-        }
+      /* Scrollbar styling */
+      #contact-list::-webkit-scrollbar,
+      #chat-window::-webkit-scrollbar {
+        width: 6px;
+      }
 
-        /* Empty state */
-        .empty-state {
-            text-align: center;
-            padding: 3rem 1rem;
-            color: var(--text-secondary);
-        }
+      #contact-list::-webkit-scrollbar-thumb,
+      #chat-window::-webkit-scrollbar-thumb {
+        background-color: #ccc;
+        border-radius: 3px;
+      }
 
-        .empty-state i {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-            opacity: 0.5;
-        }
+      /* Empty state */
+      .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: var(--text-secondary);
+      }
 
-        /* Lightbox */
-        #lightbox {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.85);
-            z-index: 1050;
-            align-items: center;
-            justify-content: center;
-            backdrop-filter: blur(5px);
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-        #lightbox.active {
-            display: flex;
-            opacity: 1;
-        }
-        #lightbox-content {
-            max-width: 90%;
-            max-height: 90%;
-            border-radius: 8px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        }
-        #lightbox-close {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            color: white;
-            font-size: 2rem;
-            cursor: pointer;
-            z-index: 1051;
-        }
+      .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+      }
 
-        /* Mobile View Toggle */
-        @media (max-width: 768px) {
-            .mobile-chat-active #sidebar { display: none !important; }
-            .mobile-chat-active #main-content { display: block !important; }
-            #main-content { display: none; }
-            #btn-mobile-back { display: inline-block !important; }
+      /* Lightbox */
+      #lightbox {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.85);
+        z-index: 1050;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(5px);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+      #lightbox.active {
+        display: flex;
+        opacity: 1;
+      }
+      #lightbox-content {
+        max-width: 90%;
+        max-height: 90%;
+        border-radius: 8px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      }
+      #lightbox-close {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        color: white;
+        font-size: 2rem;
+        cursor: pointer;
+        z-index: 1051;
+      }
+
+      /* Mobile View Toggle */
+      @media (max-width: 768px) {
+        .mobile-chat-active #sidebar {
+          display: none !important;
         }
-        .highlight-pulse {
-            animation: highlightPulse 3s ease-out;
+        .mobile-chat-active #main-content {
+          display: block !important;
         }
-        @keyframes highlightPulse {
-            0% { box-shadow: 0 0 0 0 rgba(13, 110, 253, 0.7); }
-            50% { box-shadow: 0 0 0 10px rgba(13, 110, 253, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(13, 110, 253, 0); }
+        #main-content {
+          display: none;
         }
+        #btn-mobile-back {
+          display: inline-block !important;
+        }
+      }
+      .highlight-pulse {
+        animation: highlightPulse 3s ease-out;
+      }
+      @keyframes highlightPulse {
+        0% {
+          box-shadow: 0 0 0 0 rgba(13, 110, 253, 0.7);
+        }
+        50% {
+          box-shadow: 0 0 0 10px rgba(13, 110, 253, 0);
+        }
+        100% {
+          box-shadow: 0 0 0 0 rgba(13, 110, 253, 0);
+        }
+      }
     </style>
-</head>
-<body>
-    <div class="container-fluid px-3 py-3" style="max-width: 1400px; margin: 0 auto;">
-        <!-- Header -->
-        <div class="app-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-            <h1><i class="fas fa-comments"></i> SMS Web Viewer</h1>
-            <div class="d-flex align-items-center gap-2 flex-wrap">
-                <span class="badge bg-light text-dark shadow-sm ms-2 me-1" style="font-size: 0.85em;">v1.3.4</span>
-                <div class="dropdown" id="user-menu" style="display: none;">
-                    <button class="btn btn-sm btn-light dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="fas fa-user-circle"></i> <span id="user-name-display">Profile</span>
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-                        <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#tokensModal"><i class="fas fa-key fa-fw"></i> API Tokens</a></li>
-                        <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#passwordModal"><i class="fas fa-lock fa-fw"></i> Change Password</a></li>
-                        <li id="menu-user-management" class="d-none"><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#userManagementModal"><i class="fas fa-users fa-fw"></i> User Management</a></li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item text-danger" href="#" id="btn-logout"><i class="fas fa-sign-out-alt fa-fw"></i> Logout</a></li>
-                    </ul>
-                </div>
-                <button id="btn-show-login" class="btn btn-sm btn-light" style="display: none;" data-bs-toggle="modal" data-bs-target="#loginModal">
-                    <i class="fas fa-sign-in-alt"></i> Login
-                </button>
-                <button id="settings-btn" class="btn btn-sm btn-light" data-bs-toggle="modal" data-bs-target="#settingsModal">
-                    <i class="fas fa-cog"></i> Settings
-                </button>
-                <button id="dark-mode-toggle" class="btn btn-sm btn-outline-light">
-                    <i class="fas fa-moon"></i> Dark Mode
-                </button>
-            </div>
+  </head>
+  <body>
+    <div
+      class="container-fluid px-3 py-3"
+      style="max-width: 1400px; margin: 0 auto"
+    >
+      <!-- Header -->
+      <div
+        class="app-header d-flex flex-wrap justify-content-between align-items-center gap-2"
+      >
+        <h1><i class="fas fa-comments"></i> SMS Web Viewer</h1>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <span
+            class="badge bg-light text-dark shadow-sm ms-2 me-1"
+            style="font-size: 0.85em"
+            >v1.3.4</span
+          >
+          <div class="dropdown" id="user-menu" style="display: none">
+            <button
+              class="btn btn-sm btn-light dropdown-toggle"
+              type="button"
+              id="userDropdown"
+              data-bs-toggle="dropdown"
+              aria-expanded="false"
+            >
+              <i class="fas fa-user-circle"></i>
+              <span id="user-name-display">Profile</span>
+            </button>
+            <ul
+              class="dropdown-menu dropdown-menu-end"
+              aria-labelledby="userDropdown"
+            >
+              <li>
+                <a
+                  class="dropdown-item"
+                  href="#"
+                  data-bs-toggle="modal"
+                  data-bs-target="#tokensModal"
+                  ><i class="fas fa-key fa-fw"></i> API Tokens</a
+                >
+              </li>
+              <li>
+                <a
+                  class="dropdown-item"
+                  href="#"
+                  data-bs-toggle="modal"
+                  data-bs-target="#passwordModal"
+                  ><i class="fas fa-lock fa-fw"></i> Change Password</a
+                >
+              </li>
+              <li id="menu-user-management" class="d-none">
+                <a
+                  class="dropdown-item"
+                  href="#"
+                  data-bs-toggle="modal"
+                  data-bs-target="#userManagementModal"
+                  ><i class="fas fa-users fa-fw"></i> User Management</a
+                >
+              </li>
+              <li><hr class="dropdown-divider" /></li>
+              <li>
+                <a class="dropdown-item text-danger" href="#" id="btn-logout"
+                  ><i class="fas fa-sign-out-alt fa-fw"></i> Logout</a
+                >
+              </li>
+            </ul>
+          </div>
+          <button
+            id="btn-show-login"
+            class="btn btn-sm btn-light"
+            style="display: none"
+            data-bs-toggle="modal"
+            data-bs-target="#loginModal"
+          >
+            <i class="fas fa-sign-in-alt"></i> Login
+          </button>
+          <button
+            id="settings-btn"
+            class="btn btn-sm btn-light"
+            data-bs-toggle="modal"
+            data-bs-target="#settingsModal"
+          >
+            <i class="fas fa-cog"></i> Settings
+          </button>
+          <button id="dark-mode-toggle" class="btn btn-sm btn-outline-light">
+            <i class="fas fa-moon"></i> Dark Mode
+          </button>
+        </div>
+      </div>
+
+      <!-- Sync Status Bar -->
+      <div id="sync-bar">
+        <div class="sync-status d-flex align-items-center">
+          <span id="sync-dot" class="sync-dot never"></span>
+          <span id="sync-text">No sync performed yet</span>
+          <div
+            class="progress ms-3 d-none"
+            id="sync-progress-container"
+            style="width: 150px; height: 12px"
+          >
+            <div
+              id="sync-progress-bar"
+              class="progress-bar progress-bar-striped progress-bar-animated"
+              role="progressbar"
+              style="width: 0%"
+            ></div>
+          </div>
+        </div>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <span
+            id="sync-stats"
+            class="text-muted"
+            style="font-size: 0.8rem"
+          ></span>
+          <button
+            id="sync-btn"
+            class="btn btn-sm btn-outline-primary"
+            onclick="triggerSync()"
+          >
+            <i class="fas fa-sync-alt"></i> Sync Now
+          </button>
+          <button
+            id="manual-upload-btn"
+            class="btn btn-sm btn-outline-secondary"
+            title="Upload an XML backup file. Maximum file size: 4 GB."
+          >
+            <i class="fas fa-upload"></i> Upload XML
+          </button>
+          <input
+            type="file"
+            id="xml-upload-input"
+            accept=".xml"
+            style="display: none"
+          />
+        </div>
+      </div>
+
+      <div id="app-container" class="row g-3">
+        <!-- Sidebar -->
+        <div id="sidebar" class="col-md-3">
+          <div class="mb-2 position-relative">
+            <input
+              type="search"
+              id="global-search"
+              class="form-control form-control-sm border-primary"
+              placeholder="Global Search..."
+              aria-label="Global search"
+            />
+            <i
+              class="fas fa-globe position-absolute text-primary"
+              style="top: 8px; right: 25px; font-size: 0.8rem"
+            ></i>
+          </div>
+          <hr class="my-2 text-muted" style="opacity: 0.15" />
+          <div class="mb-2">
+            <input
+              type="search"
+              id="contact-search"
+              class="form-control form-control-sm"
+              placeholder="Search contacts..."
+              aria-label="Search contacts"
+            />
+          </div>
+          <div class="mb-2">
+            <select id="contact-filter" class="form-select form-select-sm">
+              <option value="all">All Contacts</option>
+              <option value="named">Named Only</option>
+              <option value="unknown">Unknown Only</option>
+            </select>
+          </div>
+          <ul id="contact-list" class="list-group">
+            <li class="empty-state">
+              <i class="fas fa-address-book d-block"></i>
+              <span>Contacts will appear after sync</span>
+            </li>
+          </ul>
         </div>
 
-        <!-- Sync Status Bar -->
-        <div id="sync-bar">
-            <div class="sync-status d-flex align-items-center">
-                <span id="sync-dot" class="sync-dot never"></span>
-                <span id="sync-text">No sync performed yet</span>
-                <div class="progress ms-3 d-none" id="sync-progress-container" style="width: 150px; height: 12px;">
-                    <div id="sync-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+        <!-- Main Content -->
+        <div id="main-content" class="col-md-9">
+          <!-- Toolbar -->
+          <div
+            class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2"
+          >
+            <div class="d-flex flex-wrap gap-2">
+              <button
+                id="btn-mobile-back"
+                class="btn btn-outline-secondary btn-sm d-none"
+              >
+                <i class="fas fa-arrow-left"></i> Back
+              </button>
+              <button
+                id="toggle-search"
+                class="btn btn-outline-secondary btn-sm"
+              >
+                <i class="fas fa-search"></i> Search
+              </button>
+            </div>
+            <div class="btn-group">
+              <button
+                type="button"
+                class="btn btn-outline-secondary btn-sm dropdown-toggle"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+              >
+                <i class="fas fa-download"></i> Export
+              </button>
+              <ul class="dropdown-menu dropdown-menu-end">
+                <li>
+                  <a class="dropdown-item" id="export-csv" href="#"
+                    ><i class="fa-solid fa-file-csv fa-fw"></i> Export CSV</a
+                  >
+                </li>
+                <li>
+                  <a class="dropdown-item" id="export-pdf" href="#"
+                    ><i class="fa-solid fa-file-pdf fa-fw"></i> Export PDF</a
+                  >
+                </li>
+                <li>
+                  <a class="dropdown-item" id="export-json" href="#"
+                    ><i class="fa-solid fa-file-code fa-fw"></i> Export JSON</a
+                  >
+                </li>
+                <li><hr class="dropdown-divider" /></li>
+                <li>
+                  <a class="dropdown-item" id="export-media" href="#"
+                    ><i class="fa-solid fa-file-zipper fa-fw"></i> Export Media
+                    (ZIP)</a
+                  >
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Search bar -->
+          <div id="search-bar-container" class="search-bar-collapsed mb-2">
+            <div class="row g-2">
+              <div class="col-md-6">
+                <input
+                  type="search"
+                  id="conversation-search"
+                  class="form-control form-control-sm"
+                  placeholder="Search in conversation..."
+                  aria-label="Search in conversation"
+                />
+              </div>
+              <div class="col-md-3 col-6">
+                <input
+                  type="date"
+                  id="search-start-date"
+                  class="form-control form-control-sm"
+                  title="Start Date"
+                  aria-label="Search start date"
+                />
+              </div>
+              <div class="col-md-3 col-6">
+                <input
+                  type="date"
+                  id="search-end-date"
+                  class="form-control form-control-sm"
+                  title="End Date"
+                  aria-label="Search end date"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Content Tabs -->
+          <ul class="nav nav-tabs mb-2" id="content-tabs">
+            <li class="nav-item">
+              <button
+                class="nav-link active"
+                id="messages-tab"
+                data-bs-toggle="tab"
+                data-bs-target="#messages-pane"
+                type="button"
+              >
+                <i class="fas fa-comment"></i> Messages
+              </button>
+            </li>
+            <li class="nav-item">
+              <button
+                class="nav-link"
+                id="calls-tab"
+                data-bs-toggle="tab"
+                data-bs-target="#calls-pane"
+                type="button"
+              >
+                <i class="fas fa-phone"></i> Calls
+              </button>
+            </li>
+          </ul>
+
+          <div class="tab-content">
+            <!-- Messages Tab -->
+            <div class="tab-pane fade show active" id="messages-pane">
+              <div id="chat-window" class="position-relative">
+                <div class="empty-state">
+                  <i class="fas fa-comments d-block"></i>
+                  <p>Select a contact to view messages</p>
                 </div>
+              </div>
             </div>
-            <div class="d-flex align-items-center gap-2 flex-wrap">
-                <span id="sync-stats" class="text-muted" style="font-size:0.8rem;"></span>
-                <button id="sync-btn" class="btn btn-sm btn-outline-primary" onclick="triggerSync()">
-                    <i class="fas fa-sync-alt"></i> Sync Now
-                </button>
-                <button id="manual-upload-btn" class="btn btn-sm btn-outline-secondary" title="Upload an XML backup file. Maximum file size: 4 GB.">
-                    <i class="fas fa-upload"></i> Upload XML
-                </button>
-                <input type="file" id="xml-upload-input" accept=".xml" style="display: none;">
+            <!-- Calls Tab -->
+            <div class="tab-pane fade" id="calls-pane">
+              <div
+                id="calls-window"
+                class="position-relative"
+                style="
+                  max-height: calc(100vh - 310px);
+                  overflow-y: auto;
+                  padding: 1rem;
+                  background-color: var(--bg-chat);
+                  border: 1px solid var(--border-color);
+                  border-radius: 8px;
+                "
+              >
+                <div class="empty-state">
+                  <i class="fas fa-phone d-block"></i>
+                  <p>Select a contact to view call history</p>
+                </div>
+              </div>
             </div>
+          </div>
         </div>
+      </div>
 
-        <div id="app-container" class="row g-3">
-            <!-- Sidebar -->
-            <div id="sidebar" class="col-md-3">
-                <div class="mb-2 position-relative">
-                    <input type="search" id="global-search" class="form-control form-control-sm border-primary" placeholder="Global Search..." aria-label="Global search">
-                    <i class="fas fa-globe position-absolute text-primary" style="top: 8px; right: 25px; font-size: 0.8rem;"></i>
-                </div>
-                <hr class="my-2 text-muted" style="opacity: 0.15;">
-                <div class="mb-2">
-                    <input type="search" id="contact-search" class="form-control form-control-sm" placeholder="Search contacts..." aria-label="Search contacts">
-                </div>
-                <div class="mb-2">
-                    <select id="contact-filter" class="form-select form-select-sm">
-                        <option value="all">All Contacts</option>
-                        <option value="named">Named Only</option>
-                        <option value="unknown">Unknown Only</option>
-                    </select>
-                </div>
-                <ul id="contact-list" class="list-group">
-                    <li class="empty-state">
-                        <i class="fas fa-address-book d-block"></i>
-                        <span>Contacts will appear after sync</span>
-                    </li>
-                </ul>
-            </div>
-
-            <!-- Main Content -->
-            <div id="main-content" class="col-md-9">
-                <!-- Toolbar -->
-                <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
-                    <div class="d-flex flex-wrap gap-2">
-                        <button id="btn-mobile-back" class="btn btn-outline-secondary btn-sm d-none">
-                            <i class="fas fa-arrow-left"></i> Back
-                        </button>
-                        <button id="toggle-search" class="btn btn-outline-secondary btn-sm">
-                            <i class="fas fa-search"></i> Search
-                        </button>
-                    </div>
-                    <div class="btn-group">
-                        <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-download"></i> Export
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" id="export-csv" href="#"><i class="fa-solid fa-file-csv fa-fw"></i> Export CSV</a></li>
-                            <li><a class="dropdown-item" id="export-pdf" href="#"><i class="fa-solid fa-file-pdf fa-fw"></i> Export PDF</a></li>
-                            <li><a class="dropdown-item" id="export-json" href="#"><i class="fa-solid fa-file-code fa-fw"></i> Export JSON</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" id="export-media" href="#"><i class="fa-solid fa-file-zipper fa-fw"></i> Export Media (ZIP)</a></li>
-                        </ul>
-                    </div>
-                </div>
-
-                <!-- Search bar -->
-                <div id="search-bar-container" class="search-bar-collapsed mb-2">
-                    <div class="row g-2">
-                        <div class="col-md-6">
-                            <input type="search" id="conversation-search" class="form-control form-control-sm" placeholder="Search in conversation..." aria-label="Search in conversation">
-                        </div>
-                        <div class="col-md-3 col-6">
-                            <input type="date" id="search-start-date" class="form-control form-control-sm" title="Start Date" aria-label="Search start date">
-                        </div>
-                        <div class="col-md-3 col-6">
-                            <input type="date" id="search-end-date" class="form-control form-control-sm" title="End Date" aria-label="Search end date">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Content Tabs -->
-                <ul class="nav nav-tabs mb-2" id="content-tabs">
-                    <li class="nav-item">
-                        <button class="nav-link active" id="messages-tab" data-bs-toggle="tab" data-bs-target="#messages-pane" type="button">
-                            <i class="fas fa-comment"></i> Messages
-                        </button>
-                    </li>
-                    <li class="nav-item">
-                        <button class="nav-link" id="calls-tab" data-bs-toggle="tab" data-bs-target="#calls-pane" type="button">
-                            <i class="fas fa-phone"></i> Calls
-                        </button>
-                    </li>
-                </ul>
-
-                <div class="tab-content">
-                    <!-- Messages Tab -->
-                    <div class="tab-pane fade show active" id="messages-pane">
-                        <div id="chat-window" class="position-relative">
-                            <div class="empty-state">
-                                <i class="fas fa-comments d-block"></i>
-                                <p>Select a contact to view messages</p>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- Calls Tab -->
-                    <div class="tab-pane fade" id="calls-pane">
-                        <div id="calls-window" class="position-relative" style="max-height: calc(100vh - 310px); overflow-y: auto; padding: 1rem; background-color: var(--bg-chat); border: 1px solid var(--border-color); border-radius: 8px;">
-                            <div class="empty-state">
-                                <i class="fas fa-phone d-block"></i>
-                                <p>Select a contact to view call history</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Footer -->
-        <div class="text-center mt-4 text-muted" style="font-size: 0.8rem;">
-            <a href="https://github.com/cmacnichol/SMSWebViewer" target="_blank" class="text-muted text-decoration-none" title="View on GitHub">
-                <i class="fab fa-github"></i> GitHub Repository
-            </a>
-        </div>
+      <!-- Footer -->
+      <div class="text-center mt-4 text-muted" style="font-size: 0.8rem">
+        <a
+          href="https://github.com/cmacnichol/SMSWebViewer"
+          target="_blank"
+          class="text-muted text-decoration-none"
+          title="View on GitHub"
+        >
+          <i class="fab fa-github"></i> GitHub Repository
+        </a>
+      </div>
     </div>
 
     <!-- Login Modal -->
-    <div class="modal fade" id="loginModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" aria-hidden="true">
+    <div
+      class="modal fade"
+      id="loginModal"
+      tabindex="-1"
+      data-bs-backdrop="static"
+      data-bs-keyboard="false"
+      aria-hidden="true"
+    >
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content text-dark">
           <div class="modal-header">
             <h5 class="modal-title">Sign In</h5>
           </div>
           <div class="modal-body">
-            <div id="login-error" class="alert alert-danger d-none" role="alert"></div>
+            <div
+              id="login-error"
+              class="alert alert-danger d-none"
+              role="alert"
+            ></div>
             <form id="login-form">
-                <div class="mb-3">
-                    <label class="form-label" for="login-username">Username</label>
-                    <input type="text" id="login-username" class="form-control" required autocomplete="username">
-                </div>
-                <div class="mb-3">
-                    <label class="form-label" for="login-password">Password</label>
-                    <input type="password" id="login-password" class="form-control" required autocomplete="current-password">
-                </div>
-                <button type="submit" class="btn btn-primary w-100">Sign In</button>
+              <div class="mb-3">
+                <label class="form-label" for="login-username">Username</label>
+                <input
+                  type="text"
+                  id="login-username"
+                  class="form-control"
+                  required
+                  autocomplete="username"
+                />
+              </div>
+              <div class="mb-3">
+                <label class="form-label" for="login-password">Password</label>
+                <input
+                  type="password"
+                  id="login-password"
+                  class="form-control"
+                  required
+                  autocomplete="current-password"
+                />
+              </div>
+              <button type="submit" class="btn btn-primary w-100">
+                Sign In
+              </button>
             </form>
             <div id="oidc-login-section" class="d-none mt-3">
-                <div class="text-center mb-2">or</div>
-                <button id="btn-oidc-login" class="btn btn-outline-primary w-100" onclick="window.location.href='/api/user/oidc/login'"><i class="fab fa-openid"></i> Sign in with OIDC</button>
+              <div class="text-center mb-2">or</div>
+              <button
+                id="btn-oidc-login"
+                class="btn btn-outline-primary w-100"
+                onclick="window.location.href = '/api/user/oidc/login'"
+              >
+                <i class="fab fa-openid"></i> Sign in with OIDC
+              </button>
             </div>
           </div>
         </div>
@@ -561,32 +877,71 @@
         <div class="modal-content text-dark">
           <div class="modal-header">
             <h5 class="modal-title">API Tokens</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
           </div>
           <div class="modal-body">
-            <p class="small text-muted">Generate API Tokens to connect MCP compatible agents (like Claude Desktop or LM Studio) to your database over the local network.</p>
+            <p class="small text-muted">
+              Generate API Tokens to connect MCP compatible agents (like Claude
+              Desktop or LM Studio) to your database over the local network.
+            </p>
             <div class="mb-3">
-                <input type="text" id="token-description-input" class="form-control form-control-sm mb-2" placeholder="Description (e.g. LM Studio Desktop)" aria-label="Token description">
-                <div id="global-token-container" class="form-check d-none">
-                    <input class="form-check-input" type="checkbox" id="global-token-check">
-                    <label class="form-check-label" for="global-token-check">
-                        Make Global Token (Admin Only)
-                    </label>
-                </div>
-                <button id="btn-generate-token" class="btn btn-primary btn-sm mt-2">Generate New Token</button>
+              <input
+                type="text"
+                id="token-description-input"
+                class="form-control form-control-sm mb-2"
+                placeholder="Description (e.g. LM Studio Desktop)"
+                aria-label="Token description"
+              />
+              <div id="global-token-container" class="form-check d-none">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="global-token-check"
+                />
+                <label class="form-check-label" for="global-token-check">
+                  Make Global Token (Admin Only)
+                </label>
+              </div>
+              <button
+                id="btn-generate-token"
+                class="btn btn-primary btn-sm mt-2"
+              >
+                Generate New Token
+              </button>
             </div>
-            
+
             <div id="new-token-alert" class="alert alert-success d-none">
-                <strong>New Token (Save it now!):</strong><br>
-                <div class="d-flex align-items-center mt-2">
-                    <code id="new-token-value" class="fs-6 text-break me-2" style="user-select: all;"></code>
-                    <button class="btn btn-sm btn-outline-success" id="btn-copy-token" title="Copy to clipboard"><i class="fas fa-copy"></i></button>
-                </div>
+              <strong>New Token (Save it now!):</strong><br />
+              <div class="d-flex align-items-center mt-2">
+                <code
+                  id="new-token-value"
+                  class="fs-6 text-break me-2"
+                  style="user-select: all"
+                ></code>
+                <button
+                  class="btn btn-sm btn-outline-success"
+                  id="btn-copy-token"
+                  title="Copy to clipboard"
+                  aria-label="Copy token to clipboard"
+                >
+                  <i class="fas fa-copy" aria-hidden="true"></i>
+                </button>
+              </div>
             </div>
-            
+
             <h6>Your Tokens</h6>
-            <ul id="tokens-list" class="list-group list-group-flush border rounded">
-                <li class="list-group-item text-center text-muted small py-3">Loading tokens...</li>
+            <ul
+              id="tokens-list"
+              class="list-group list-group-flush border rounded"
+            >
+              <li class="list-group-item text-center text-muted small py-3">
+                Loading tokens...
+              </li>
             </ul>
           </div>
         </div>
@@ -599,22 +954,54 @@
         <div class="modal-content text-dark">
           <div class="modal-header">
             <h5 class="modal-title">Change Password</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
           </div>
           <div class="modal-body">
-            <div id="password-error" class="alert alert-danger d-none" role="alert"></div>
-            <div id="password-success" class="alert alert-success d-none" role="alert"></div>
+            <div
+              id="password-error"
+              class="alert alert-danger d-none"
+              role="alert"
+            ></div>
+            <div
+              id="password-success"
+              class="alert alert-success d-none"
+              role="alert"
+            ></div>
             <form id="password-form">
-                <div class="mb-3">
-                    <label class="form-label">Current Password</label>
-                    <input type="password" id="current-password" class="form-control" required autocomplete="current-password">
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">New Password</label>
-                    <input type="password" id="new-password" class="form-control" minlength="8" required autocomplete="new-password">
-                    <div class="form-text">Minimum 8 characters.</div>
-                </div>
-                <button type="submit" class="btn btn-primary w-100">Update Password</button>
+              <div class="mb-3">
+                <label class="form-label" for="current-password"
+                  >Current Password</label
+                >
+                <input
+                  type="password"
+                  id="current-password"
+                  class="form-control"
+                  required
+                  autocomplete="current-password"
+                />
+              </div>
+              <div class="mb-3">
+                <label class="form-label" for="new-password"
+                  >New Password</label
+                >
+                <input
+                  type="password"
+                  id="new-password"
+                  class="form-control"
+                  minlength="8"
+                  required
+                  autocomplete="new-password"
+                />
+                <div class="form-text">Minimum 8 characters.</div>
+              </div>
+              <button type="submit" class="btn btn-primary w-100">
+                Update Password
+              </button>
             </form>
           </div>
         </div>
@@ -622,52 +1009,97 @@
     </div>
 
     <!-- User Management Modal -->
-    <div class="modal fade" id="userManagementModal" tabindex="-1" aria-hidden="true">
+    <div
+      class="modal fade"
+      id="userManagementModal"
+      tabindex="-1"
+      aria-hidden="true"
+    >
       <div class="modal-dialog modal-lg">
         <div class="modal-content text-dark">
           <div class="modal-header">
             <h5 class="modal-title">User Management</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
           </div>
           <div class="modal-body">
-            <div id="um-error" class="alert alert-danger d-none" role="alert"></div>
-            <div id="um-success" class="alert alert-success d-none" role="alert"></div>
-            
+            <div
+              id="um-error"
+              class="alert alert-danger d-none"
+              role="alert"
+            ></div>
+            <div
+              id="um-success"
+              class="alert alert-success d-none"
+              role="alert"
+            ></div>
+
             <h6>Create New User</h6>
             <form id="create-user-form" class="mb-4">
-                <div class="row g-2">
-                    <div class="col-md-4">
-                        <input type="text" id="cu-username" class="form-control form-control-sm" placeholder="Username" required autocomplete="off" aria-label="New username">
-                    </div>
-                    <div class="col-md-4">
-                        <input type="password" id="cu-password" class="form-control form-control-sm" placeholder="Password (Min 8)" minlength="8" required autocomplete="new-password" aria-label="New password">
-                    </div>
-                    <div class="col-md-2">
-                        <select id="cu-role" class="form-select form-select-sm" aria-label="New user role">
-                            <option value="user">User</option>
-                            <option value="admin">Admin</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <button type="submit" class="btn btn-sm btn-success w-100"><i class="fas fa-plus"></i> Create</button>
-                    </div>
+              <div class="row g-2">
+                <div class="col-md-4">
+                  <input
+                    type="text"
+                    id="cu-username"
+                    class="form-control form-control-sm"
+                    placeholder="Username"
+                    required
+                    autocomplete="off"
+                    aria-label="New username"
+                  />
                 </div>
+                <div class="col-md-4">
+                  <input
+                    type="password"
+                    id="cu-password"
+                    class="form-control form-control-sm"
+                    placeholder="Password (Min 8)"
+                    minlength="8"
+                    required
+                    autocomplete="new-password"
+                    aria-label="New password"
+                  />
+                </div>
+                <div class="col-md-2">
+                  <select
+                    id="cu-role"
+                    class="form-select form-select-sm"
+                    aria-label="New user role"
+                  >
+                    <option value="user">User</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+                <div class="col-md-2">
+                  <button type="submit" class="btn btn-sm btn-success w-100">
+                    <i class="fas fa-plus"></i> Create
+                  </button>
+                </div>
+              </div>
             </form>
-            
+
             <h6>Existing Users</h6>
             <div class="table-responsive">
-                <table class="table table-sm table-hover align-middle">
-                    <thead>
-                        <tr>
-                            <th>Username</th>
-                            <th>Role</th>
-                            <th class="text-end">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="users-table-body">
-                        <tr><td colspan="3" class="text-center text-muted">Loading users...</td></tr>
-                    </tbody>
-                </table>
+              <table class="table table-sm table-hover align-middle">
+                <thead>
+                  <tr>
+                    <th>Username</th>
+                    <th>Role</th>
+                    <th class="text-end">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="users-table-body">
+                  <tr>
+                    <td colspan="3" class="text-center text-muted">
+                      Loading users...
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -675,73 +1107,147 @@
     </div>
 
     <!-- Settings Modal -->
-    <div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
+    <div
+      class="modal fade"
+      id="settingsModal"
+      tabindex="-1"
+      aria-labelledby="settingsModalLabel"
+      aria-hidden="true"
+    >
       <div class="modal-dialog">
         <div class="modal-content text-dark">
           <div class="modal-header">
             <h5 class="modal-title" id="settingsModalLabel">Settings</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
           </div>
           <div class="modal-body">
             <h6>Google Drive Connection</h6>
             <div id="gdrive-status" class="mb-3">
-                <span class="badge bg-secondary">Checking status...</span>
+              <span class="badge bg-secondary">Checking status...</span>
             </div>
-            
+
             <div id="gdrive-connect-container" class="d-none">
-                <p class="text-muted small">Connect your Google Drive account to sync SMS and Call backups automatically.</p>
-                <div class="d-flex gap-2">
-                    <button id="btn-connect-gdrive" class="btn btn-primary"><i class="fab fa-google"></i> Connect Google Drive</button>
-                    <button id="btn-disconnect-gdrive" class="btn btn-outline-danger d-none"><i class="fas fa-unlink"></i> Disconnect</button>
-                </div>
+              <p class="text-muted small">
+                Connect your Google Drive account to sync SMS and Call backups
+                automatically.
+              </p>
+              <div class="d-flex gap-2">
+                <button id="btn-connect-gdrive" class="btn btn-primary">
+                  <i class="fab fa-google"></i> Connect Google Drive
+                </button>
+                <button
+                  id="btn-disconnect-gdrive"
+                  class="btn btn-outline-danger d-none"
+                >
+                  <i class="fas fa-unlink"></i> Disconnect
+                </button>
+              </div>
             </div>
 
             <div id="gdrive-settings-container" class="d-none">
-                <div class="mb-3">
-                    <label for="gdrive-folder-select" class="form-label">Sync Folder</label>
-                    <input type="search" id="gdrive-folder-search" class="form-control form-control-sm mb-2" placeholder="Search folders..." aria-label="Search Google Drive folders">
-                    <select id="gdrive-folder-select" class="form-select" size="6" style="max-height: 200px; overflow-y: auto;">
-                        <option value="">Loading folders...</option>
-                    </select>
-                    <div class="form-text mt-1">Select the folder containing your XML backups.</div>
+              <div class="mb-3">
+                <label for="gdrive-folder-select" class="form-label"
+                  >Sync Folder</label
+                >
+                <input
+                  type="search"
+                  id="gdrive-folder-search"
+                  class="form-control form-control-sm mb-2"
+                  placeholder="Search folders..."
+                  aria-label="Search Google Drive folders"
+                />
+                <select
+                  id="gdrive-folder-select"
+                  class="form-select"
+                  size="6"
+                  style="max-height: 200px; overflow-y: auto"
+                >
+                  <option value="">Loading folders...</option>
+                </select>
+                <div class="form-text mt-1">
+                  Select the folder containing your XML backups.
                 </div>
-                <div class="mb-3">
-                    <label for="sync-schedule-select" class="form-label">Background Sync Schedule</label>
-                    <select id="sync-schedule-select" class="form-select">
-                        <option value="manual">Manual Only</option>
-                        <option value="0 * * * *">Every Hour</option>
-                        <option value="0 */6 * * *">Every 6 Hours</option>
-                        <option value="0 2 * * *">Daily at 2 AM</option>
-                    </select>
-                </div>
-                <button id="btn-save-gdrive-settings" class="btn btn-success">Save Settings</button>
+              </div>
+              <div class="mb-3">
+                <label for="sync-schedule-select" class="form-label"
+                  >Background Sync Schedule</label
+                >
+                <select id="sync-schedule-select" class="form-select">
+                  <option value="manual">Manual Only</option>
+                  <option value="0 * * * *">Every Hour</option>
+                  <option value="0 */6 * * *">Every 6 Hours</option>
+                  <option value="0 2 * * *">Daily at 2 AM</option>
+                </select>
+              </div>
+              <button id="btn-save-gdrive-settings" class="btn btn-success">
+                Save Settings
+              </button>
             </div>
-            
-            <hr>
+
+            <hr />
             <h5>Notifications</h5>
             <div id="notifications-settings-container">
-                <p class="text-muted small">Configure Apprise URLs to receive notifications on sync. (e.g. <code>discord://webhook_id/webhook_token</code>, <code>tgram://bottoken/chatid</code>)</p>
-                <div class="mb-3">
-                    <label for="notification-urls" class="form-label">Apprise URLs (comma separated)</label>
-                    <textarea id="notification-urls" class="form-control form-control-sm" rows="2" placeholder="discord://..."></textarea>
-                    <div class="form-text"><a href="https://github.com/caronc/apprise/wiki" target="_blank">View supported services</a></div>
+              <p class="text-muted small">
+                Configure Apprise URLs to receive notifications on sync. (e.g.
+                <code>discord://webhook_id/webhook_token</code>,
+                <code>tgram://bottoken/chatid</code>)
+              </p>
+              <div class="mb-3">
+                <label for="notification-urls" class="form-label"
+                  >Apprise URLs (comma separated)</label
+                >
+                <textarea
+                  id="notification-urls"
+                  class="form-control form-control-sm"
+                  rows="2"
+                  placeholder="discord://..."
+                ></textarea>
+                <div class="form-text">
+                  <a
+                    href="https://github.com/caronc/apprise/wiki"
+                    target="_blank"
+                    >View supported services</a
+                  >
                 </div>
-                <div class="form-check mb-2">
-                    <input class="form-check-input" type="checkbox" id="notify-success">
-                    <label class="form-check-label" for="notify-success">Notify on Sync Success</label>
-                </div>
-                <div class="form-check mb-3">
-                    <input class="form-check-input" type="checkbox" id="notify-failure">
-                    <label class="form-check-label" for="notify-failure">Notify on Sync Failure</label>
-                </div>
-                <button id="btn-test-notification" class="btn btn-sm btn-outline-primary mb-2">Test Notification</button>
-                <div id="notification-test-result" class="small mt-1"></div>
+              </div>
+              <div class="form-check mb-2">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="notify-success"
+                />
+                <label class="form-check-label" for="notify-success"
+                  >Notify on Sync Success</label
+                >
+              </div>
+              <div class="form-check mb-3">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="notify-failure"
+                />
+                <label class="form-check-label" for="notify-failure"
+                  >Notify on Sync Failure</label
+                >
+              </div>
+              <button
+                id="btn-test-notification"
+                class="btn btn-sm btn-outline-primary mb-2"
+              >
+                Test Notification
+              </button>
+              <div id="notification-test-result" class="small mt-1"></div>
             </div>
-            
-            <hr>
+
+            <hr />
             <h5>Database Statistics</h5>
             <div id="db-stats-container" class="mb-3">
-                <p class="text-muted">Loading stats...</p>
+              <p class="text-muted">Loading stats...</p>
             </div>
           </div>
         </div>
@@ -750,13 +1256,22 @@
 
     <!-- Lightbox -->
     <div id="lightbox">
-        <i id="lightbox-close" class="fas fa-times"></i>
-        <div id="lightbox-container" class="d-flex align-items-center justify-content-center w-100 h-100">
-            <!-- Media injected here via JS -->
-        </div>
+      <button
+        id="lightbox-close"
+        aria-label="Close image"
+        style="background: none; border: none; padding: 0"
+      >
+        <i class="fas fa-times" aria-hidden="true"></i>
+      </button>
+      <div
+        id="lightbox-container"
+        class="d-flex align-items-center justify-content-center w-100 h-100"
+      >
+        <!-- Media injected here via JS -->
+      </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
-</body>
+  </body>
 </html>
