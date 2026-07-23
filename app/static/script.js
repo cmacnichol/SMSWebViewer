@@ -1050,7 +1050,7 @@ async function loadTokens() {
                         ${desc}
                         <div class="small text-muted">Created: ${date}</div>
                     </div>
-                    <button class="btn btn-sm btn-outline-danger" onclick="revokeToken('${t.id}')">Revoke</button>
+                    <button aria-label="Revoke token" class="btn btn-sm btn-outline-danger" onclick="revokeToken('${t.id}')">Revoke</button>
                 `;
                 list.appendChild(li);
             });
@@ -1229,7 +1229,7 @@ async function loadUsers() {
                 <td>${u.username}</td>
                 <td><span class="badge ${u.role === 'admin' ? 'bg-danger' : 'bg-primary'}">${u.role}</span></td>
                 <td class="text-end">
-                    <button class="btn btn-sm btn-outline-danger btn-delete-user" data-id="${u.id}"><i class="fas fa-trash"></i></button>
+                    <button aria-label="Delete user" class="btn btn-sm btn-outline-danger btn-delete-user" data-id="${u.id}"><i class="fas fa-trash"></i></button>
                 </td>
             `;
             tbody.appendChild(tr);
