@@ -179,14 +179,22 @@ function renderContacts(contacts) {
     contacts.forEach(c => {
         const li = document.createElement('li');
         li.className = 'list-group-item d-flex justify-content-between align-items-center';
+        li.setAttribute('role', 'button');
+        li.setAttribute('tabindex', '0');
         if (currentContact === c.normalized_address) li.classList.add('active');
         li.innerHTML = `
             <div>
                 <div class="contact-name">${escapeHtml(c.display_name || 'Unknown')}</div>
                 <div class="contact-number">${escapeHtml(c.normalized_address)}</div>
             </div>
-            <span class="contact-count">${c.message_count}</span>`;
+            <span class="contact-count" aria-label="${c.message_count} messages" title="${c.message_count} messages">${c.message_count}</span>`;
         li.addEventListener('click', () => selectContact(c.normalized_address));
+        li.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                selectContact(c.normalized_address);
+            }
+        });
         contactList.appendChild(li);
     });
 }
@@ -1229,7 +1237,7 @@ async function loadUsers() {
                 <td>${u.username}</td>
                 <td><span class="badge ${u.role === 'admin' ? 'bg-danger' : 'bg-primary'}">${u.role}</span></td>
                 <td class="text-end">
-                    <button class="btn btn-sm btn-outline-danger btn-delete-user" data-id="${u.id}"><i class="fas fa-trash"></i></button>
+                    <button class="btn btn-sm btn-outline-danger btn-delete-user" data-id="${u.id}" aria-label="Delete user" title="Delete user"><i class="fas fa-trash"></i></button>
                 </td>
             `;
             tbody.appendChild(tr);
