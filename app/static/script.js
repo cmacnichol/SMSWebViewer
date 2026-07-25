@@ -984,11 +984,13 @@ document.getElementById('btn-test-notification')?.addEventListener('click', asyn
 document.getElementById('login-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = e.target.querySelector('button[type="submit"]');
+    const originalBtnText = btn.innerHTML;
     const errEl = document.getElementById('login-error');
     const u = document.getElementById('login-username').value;
     const p = document.getElementById('login-password').value;
     
     btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Signing In...';
     errEl.classList.add('d-none');
     
     const formData = new FormData();
@@ -1012,6 +1014,7 @@ document.getElementById('login-form')?.addEventListener('submit', async (e) => {
         errEl.classList.remove('d-none');
     } finally {
         btn.disabled = false;
+        btn.innerHTML = originalBtnText;
     }
 });
 
@@ -1167,10 +1170,15 @@ document.getElementById('btn-copy-token')?.addEventListener('click', async () =>
 // ---- User Management & Password Change ----
 document.getElementById('password-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    const originalBtnText = btn.innerHTML;
     const currentPass = document.getElementById('current-password').value;
     const newPass = document.getElementById('new-password').value;
     const errEl = document.getElementById('password-error');
     const succEl = document.getElementById('password-success');
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
     errEl.classList.add('d-none');
     succEl.classList.add('d-none');
     
@@ -1195,6 +1203,9 @@ document.getElementById('password-form')?.addEventListener('submit', async (e) =
     } catch (err) {
         errEl.textContent = 'An error occurred';
         errEl.classList.remove('d-none');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalBtnText;
     }
 });
 
@@ -1265,11 +1276,16 @@ async function loadUsers() {
 
 document.getElementById('create-user-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    const originalBtnText = btn.innerHTML;
     const username = document.getElementById('cu-username').value;
     const password = document.getElementById('cu-password').value;
     const role = document.getElementById('cu-role').value;
     const errEl = document.getElementById('um-error');
     const succEl = document.getElementById('um-success');
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
     errEl.classList.add('d-none');
     succEl.classList.add('d-none');
     
@@ -1293,5 +1309,8 @@ document.getElementById('create-user-form')?.addEventListener('submit', async (e
     } catch (err) {
         errEl.textContent = 'An error occurred';
         errEl.classList.remove('d-none');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalBtnText;
     }
 });
