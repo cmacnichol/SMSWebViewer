@@ -137,7 +137,7 @@ function renderGlobalSearchResults(messages, query) {
         const icon = isIncoming ? '<i class="fas fa-arrow-down text-success"></i> Received' : '<i class="fas fa-arrow-up text-primary"></i> Sent';
         
         html += `
-            <div class="card mb-2 border shadow-sm" style="cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'" onclick="loadGlobalResult('${msg.normalized_address}', '${msg.source}-${msg.id}')">
+            <div class="card mb-2 border shadow-sm" style="cursor: pointer; transition: transform 0.2s;" tabindex="0" role="button" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'" onfocus="this.style.transform='translateY(-2px)'" onblur="this.style.transform='translateY(0)'" onclick="loadGlobalResult('${msg.normalized_address}', '${msg.source}-${msg.id}')" onkeydown="if(event.key === 'Enter' || event.key === ' ') { event.preventDefault(); loadGlobalResult('${msg.normalized_address}', '${msg.source}-${msg.id}'); }">
                 <div class="card-body p-3">
                     <div class="d-flex justify-content-between mb-1">
                         <strong><i class="fas fa-user-circle text-muted me-1"></i> ${displayContact}</strong>
@@ -180,6 +180,8 @@ function renderContacts(contacts) {
         const li = document.createElement('li');
         li.className = 'list-group-item d-flex justify-content-between align-items-center';
         if (currentContact === c.normalized_address) li.classList.add('active');
+        li.setAttribute('role', 'button');
+        li.setAttribute('tabindex', '0');
         li.innerHTML = `
             <div>
                 <div class="contact-name">${escapeHtml(c.display_name || 'Unknown')}</div>
@@ -187,6 +189,12 @@ function renderContacts(contacts) {
             </div>
             <span class="contact-count">${c.message_count}</span>`;
         li.addEventListener('click', () => selectContact(c.normalized_address));
+        li.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                selectContact(c.normalized_address);
+            }
+        });
         contactList.appendChild(li);
     });
 }
@@ -1240,7 +1248,7 @@ async function loadUsers() {
                 <td>${u.username}</td>
                 <td><span class="badge ${u.role === 'admin' ? 'bg-danger' : 'bg-primary'}">${u.role}</span></td>
                 <td class="text-end">
-                    <button class="btn btn-sm btn-outline-danger btn-delete-user" data-id="${u.id}"><i class="fas fa-trash"></i></button>
+                    <button class="btn btn-sm btn-outline-danger btn-delete-user" data-id="${u.id}" aria-label="Delete user ${escapeHtml(u.username)}" title="Delete user"><i class="fas fa-trash"></i></button>
                 </td>
             `;
             tbody.appendChild(tr);

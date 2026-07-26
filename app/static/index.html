@@ -153,6 +153,11 @@
         color: white;
       }
 
+      #contact-list .list-group-item:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: -2px;
+      }
+
       .contact-name {
         font-weight: 500;
         font-size: 0.9rem;
@@ -635,7 +640,7 @@
             />
           </div>
           <div class="mb-2">
-            <select id="contact-filter" class="form-select form-select-sm">
+            <select id="contact-filter" class="form-select form-select-sm" aria-label="Filter contacts">
               <option value="all">All Contacts</option>
               <option value="named">Named Only</option>
               <option value="unknown">Unknown Only</option>
