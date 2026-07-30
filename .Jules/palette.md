@@ -7,3 +7,6 @@
 ## 2024-05-26 - Missing visual feedback on async forms
 **Learning:** Discovered that critical forms like login, password change, and user creation didn't disable submit buttons or show loading states during async API requests, leading to potential duplicate submissions and poor user feedback.
 **Action:** Always implement disabled states and explicit loading indicators (e.g., spinners) for form submit buttons that trigger async requests.
+## 2024-05-27 - Icon-only async action buttons
+**Learning:** Icon-only buttons within dynamic lists (like user deletion) were missing both ARIA labels for screen readers and async loading states, which causes confusion and risks double-clicks.
+**Action:** Always add `aria-label` and `title` to icon-only buttons, set `aria-hidden="true"` on the icon itself, and ensure click handlers immediately disable the button and swap the icon to a spinner during network requests.
