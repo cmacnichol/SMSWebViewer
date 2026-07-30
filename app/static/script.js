@@ -1240,7 +1240,7 @@ async function loadUsers() {
                 <td>${u.username}</td>
                 <td><span class="badge ${u.role === 'admin' ? 'bg-danger' : 'bg-primary'}">${u.role}</span></td>
                 <td class="text-end">
-                    <button class="btn btn-sm btn-outline-danger btn-delete-user" data-id="${u.id}"><i class="fas fa-trash"></i></button>
+                    <button class="btn btn-sm btn-outline-danger btn-delete-user" data-id="${u.id}" aria-label="Delete user" title="Delete user"><i class="fas fa-trash" aria-hidden="true"></i></button>
                 </td>
             `;
             tbody.appendChild(tr);
@@ -1251,6 +1251,10 @@ async function loadUsers() {
                 const id = e.currentTarget.getAttribute('data-id');
                 if (!confirm('Are you sure you want to delete this user?')) return;
                 
+                const originalBtnText = btn.innerHTML;
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i>';
+
                 try {
                     const dRes = await fetch(`${API_BASE}/user/${id}`, { method: 'DELETE' });
                     if (dRes.ok) {
@@ -1259,10 +1263,14 @@ async function loadUsers() {
                         const dData = await dRes.json();
                         errEl.textContent = dData.detail || 'Failed to delete user';
                         errEl.classList.remove('d-none');
+                        btn.disabled = false;
+                        btn.innerHTML = originalBtnText;
                     }
                 } catch(err) {
                     errEl.textContent = 'Failed to delete user';
                     errEl.classList.remove('d-none');
+                    btn.disabled = false;
+                    btn.innerHTML = originalBtnText;
                 }
             });
         });
