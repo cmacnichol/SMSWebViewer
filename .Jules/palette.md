@@ -7,3 +7,6 @@
 ## 2024-05-26 - Missing visual feedback on async forms
 **Learning:** Discovered that critical forms like login, password change, and user creation didn't disable submit buttons or show loading states during async API requests, leading to potential duplicate submissions and poor user feedback.
 **Action:** Always implement disabled states and explicit loading indicators (e.g., spinners) for form submit buttons that trigger async requests.
+## 2024-05-27 - Icon-only buttons lacking context
+**Learning:** Found dynamically generated icon-only buttons (like delete buttons in data tables) without screen reader context or visual tooltips, making them inaccessible.
+**Action:** Always add `aria-label` and `title` to icon-only buttons, and use `aria-hidden="true"` on the icon element so screen readers only announce the label.
