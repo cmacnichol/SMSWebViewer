@@ -1240,7 +1240,7 @@ async function loadUsers() {
                 <td>${u.username}</td>
                 <td><span class="badge ${u.role === 'admin' ? 'bg-danger' : 'bg-primary'}">${u.role}</span></td>
                 <td class="text-end">
-                    <button class="btn btn-sm btn-outline-danger btn-delete-user" data-id="${u.id}"><i class="fas fa-trash"></i></button>
+                    <button class="btn btn-sm btn-outline-danger btn-delete-user" data-id="${u.id}" aria-label="Delete user" title="Delete user"><i class="fas fa-trash" aria-hidden="true"></i></button>
                 </td>
             `;
             tbody.appendChild(tr);
