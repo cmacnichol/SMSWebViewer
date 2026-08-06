@@ -179,6 +179,8 @@ function renderContacts(contacts) {
     contacts.forEach(c => {
         const li = document.createElement('li');
         li.className = 'list-group-item d-flex justify-content-between align-items-center';
+        li.setAttribute('role', 'button');
+        li.setAttribute('tabindex', '0');
         if (currentContact === c.normalized_address) li.classList.add('active');
         li.innerHTML = `
             <div>
@@ -187,6 +189,12 @@ function renderContacts(contacts) {
             </div>
             <span class="contact-count">${c.message_count}</span>`;
         li.addEventListener('click', () => selectContact(c.normalized_address));
+        li.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                selectContact(c.normalized_address);
+            }
+        });
         contactList.appendChild(li);
     });
 }
